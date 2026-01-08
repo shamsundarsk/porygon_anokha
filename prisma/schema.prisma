@@ -1,0 +1,247 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  CUSTOMER
+  ENTERPRISE
+  DRIVER
+  ADMIN
+}
+
+enum BusinessType {
+  B2C
+  B2B
+}
+
+enum VehicleType {
+  BIKE
+  AUTO
+  MINI_TRUCK
+  PICKUP
+}
+
+enum DeliveryStatus {
+  PENDING
+  ACCEPTED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum PackageType {
+  DOCUMENT
+  PARCEL
+  FOOD
+  GROCERY
+  ELECTRONICS
+  FRAGILE
+  OTHER
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  phone         String      @unique
+  password      String
+  name          String
+  userType      UserType
+  businessType  BusinessType @default(B2C)
+  companyName   String?
+  isVerified    Boolean     @default(false)
+  isActive      Boolean     @default(true)
+  avatar        String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Driver specific fields
+  vehicleType     VehicleType?
+  vehicleNumber   String?
+  licenseNumber   String?
+  isOnline        Boolean     @default(false)
+  currentLat      Float?
+  currentLng      Float?
+  rating          Float       @default(5.0)
+  totalDeliveries Int         @default(0)
+  completionRate  Float       @default(100.0)
+  onTimeRate      Float       @default(95.0)
+  documentsVerified Boolean   @default(false)
+
+  // Relations
+  customerDeliveries  Delivery[] @relation("CustomerDeliveries")
+  driverDeliveries    Delivery[] @relation("DriverDeliveries")
+  earnings           Earning[]
+  notifications      Notification[]
+  reviews            Review[]
+  disputes           Dispute[]
+
+  @@map("users")
+}
+
+model Delivery {
+  id                String        @id @default(cuid())
+  customerId        String
+  driverId          String?
+  status            DeliveryStatus @default(PENDING)
+  businessType      BusinessType   @default(B2C)
+  
+  // Pickup details
+  pickupAddress     String
+  pickupLat         Float
+  pickupLng         Float
+  pickupContactName String
+  pickupContactPhone String
+  pickupInstructions String?
+  
+  // Dropoff details
+  dropoffAddress    String
+  dropoffLat        Float
+  dropoffLng        Float
+  dropoffContactName String
+  dropoffContactPhone String
+  dropoffInstructions String?
+  
+  // Package details
+  packageType       PackageType
+  packageWeight     Float
+  packageDimensions Json?
+  packageValue      Float?
+  packageDescription String?
+  isFragile         Boolean       @default(false)
+  
+  // Pricing
+  baseFare          Float
+  distanceCost      Float
+  fuelAdjustment    Float
+  tollCharges       Float       @default(0)
+  waitingTime       Int         @default(0)
+  waitingCharges    Float       @default(0)
+  platformCommission Float
+  totalFare         Float
+  driverEarnings    Float
+  
+  // Timing
+  scheduledTime     DateTime?
+  acceptedAt        DateTime?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  estimatedDistance Float
+  estimatedDuration Int
+  actualDistance    Float?
+  actualDuration    Int?
+  
+  // Additional info
+  customerNotes     String?
+  driverNotes       String?
+  proofOfDelivery   Json?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  customer          User          @relation("CustomerDeliveries", fields: [customerId], references: [id])
+  driver            User?         @relation("DriverDeliveries", fields: [driverId], references: [id])
+  trackingUpdates   TrackingUpdate[]
+  reviews           Review[]
+  disputes          Dispute[]
+
+  @@map("deliveries")
+}
+
+model TrackingUpdate {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  lat         Float
+  lng         Float
+  status      String
+  message     String?
+  timestamp   DateTime @default(now())
+
+  delivery    Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@map("tracking_updates")
+}
+
+model Earning {
+  id          String   @id @default(cuid())
+  userId      String
+  deliveryId  String?
+  amount      Float
+  type        String   // DELIVERY, BONUS, PENALTY, etc.
+  description String?
+  date        DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("earnings")
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  reviewerId  String
+  revieweeId  String
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  delivery    Delivery @relation(fields: [deliveryId], references: [id])
+  reviewer    User     @relation(fields: [reviewerId], references: [id])
+
+  @@map("reviews")
+}
+
+model Dispute {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  reporterId  String
+  type        String
+  description String
+  status      String   @default("OPEN")
+  resolution  String?
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  delivery    Delivery @relation(fields: [deliveryId], references: [id])
+  reporter    User     @relation(fields: [reporterId], references: [id])
+
+  @@map("disputes")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  message     String
+  type        String
+  isRead      Boolean  @default(false)
+  data        Json?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model PricingRule {
+  id              String   @id @default(cuid())
+  vehicleType     VehicleType
+  baseFare        Float
+  perKmRate       Float
+  perMinuteRate   Float
+  fuelSurcharge   Float
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("pricing_rules")
+}
