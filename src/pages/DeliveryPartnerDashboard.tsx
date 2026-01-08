@@ -67,7 +67,7 @@ const DeliveryPartnerDashboard: React.FC = () => {
 
   const fetchPartnerData = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/drivers/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -87,7 +87,7 @@ const DeliveryPartnerDashboard: React.FC = () => {
 
   const fetchAvailableDeliveries = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/deliveries/available', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -104,7 +104,7 @@ const DeliveryPartnerDashboard: React.FC = () => {
 
   const fetchDeliveryHistory = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/deliveries/history', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -121,7 +121,7 @@ const DeliveryPartnerDashboard: React.FC = () => {
 
   const toggleOnlineStatus = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/drivers/toggle-status', {
         method: 'POST',
         headers: {
@@ -138,7 +138,7 @@ const DeliveryPartnerDashboard: React.FC = () => {
 
   const acceptDelivery = async (deliveryId: string) => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch(`/api/deliveries/${deliveryId}/accept`, {
         method: 'POST',
         headers: {
@@ -159,7 +159,7 @@ const DeliveryPartnerDashboard: React.FC = () => {
     if (!currentDelivery) return
 
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch(`/api/deliveries/${currentDelivery.id}/status`, {
         method: 'POST',
         headers: {

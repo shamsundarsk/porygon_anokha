@@ -1,17 +1,17 @@
-# FairLoad Database Setup Guide
+# PakkaDrop Database Setup Guide
 
 ## Quick Setup with Neon (Recommended)
 
 ### 1. Create Neon Account
 1. Go to [neon.tech](https://neon.tech)
 2. Sign up with GitHub/Google
-3. Create a new project named "fairload"
+3. Create a new project named "pakkadrop"
 
 ### 2. Get Connection String
 1. In your Neon dashboard, go to "Connection Details"
 2. Copy the connection string (it looks like):
    ```
-   postgresql://username:password@ep-xxx-xxx.neon.tech/fairload?sslmode=require
+   postgresql://username:password@ep-xxx-xxx.neon.tech/pakkadrop?sslmode=require
    ```
 
 ### 3. Update Environment
@@ -70,16 +70,16 @@ sudo systemctl start postgresql
 ### 2. Create Database
 ```bash
 # Create user and database
-sudo -u postgres createuser --interactive fairload_user
-sudo -u postgres createdb fairload_db -O fairload_user
+sudo -u postgres createuser --interactive pakkadrop_user
+sudo -u postgres createdb pakkadrop_db -O pakkadrop_user
 
 # Set password
-sudo -u postgres psql -c "ALTER USER fairload_user PASSWORD 'your_password';"
+sudo -u postgres psql -c "ALTER USER pakkadrop_user PASSWORD 'your_password';"
 ```
 
 ### 3. Update Environment
 ```env
-DATABASE_URL="postgresql://fairload_user:your_password@localhost:5432/fairload_db"
+DATABASE_URL="postgresql://pakkadrop_user:your_password@localhost:5432/pakkadrop_db"
 ```
 
 ### 4. Initialize Database

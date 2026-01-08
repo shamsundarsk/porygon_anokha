@@ -81,7 +81,7 @@ const AuthPage: React.FC = () => {
               <Truck className="h-12 w-12 text-primary-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">
-              {isLogin ? 'Welcome Back' : 'Join FairLoad'}
+              {isLogin ? 'Welcome Back' : 'Join PakkaDrop'}
             </h2>
             <p className="text-gray-600 mt-2">
               {isLogin ? 'Sign in to your account' : 'Create your account'}

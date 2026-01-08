@@ -61,7 +61,7 @@ const globalRateLimit = rateLimit({
   store: redis && RedisStore ? new RedisStore({
     sendCommand: (...args) => redis.call(...args)
   }) : undefined,
-  onLimitReached: async (req) => {
+  handler: async (req, res) => {
     await logSecurityEvent({
       eventType: 'RATE_LIMIT_EXCEEDED',
       severity: 'medium',
@@ -69,13 +69,17 @@ const globalRateLimit = rateLimit({
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     })
+    res.status(429).json({
+      error: 'Too many requests from this IP, please try again later',
+      retryAfter: '15 minutes'
+    })
   }
 })
 
 // Authentication rate limiting (stricter)
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 auth requests per windowMs
+  max: 3, // Limit each IP to 3 auth requests per windowMs
   message: {
     error: 'Too many authentication attempts, please try again later',
     retryAfter: '15 minutes'
@@ -84,7 +88,7 @@ const authRateLimit = rateLimit({
   store: redis && RedisStore ? new RedisStore({
     sendCommand: (...args) => redis.call(...args)
   }) : undefined,
-  onLimitReached: async (req) => {
+  handler: async (req, res) => {
     await logSecurityEvent({
       eventType: 'RATE_LIMIT_EXCEEDED',
       severity: 'high',
@@ -92,13 +96,17 @@ const authRateLimit = rateLimit({
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     })
+    res.status(429).json({
+      error: 'Too many authentication attempts, please try again later',
+      retryAfter: '15 minutes'
+    })
   }
 })
 
 // Payment rate limiting (very strict)
 const paymentRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 3, // Limit each IP to 3 payment requests per minute
+  max: 2, // Limit each IP to 2 payment requests per minute
   message: {
     error: 'Too many payment attempts, please try again later',
     retryAfter: '1 minute'
@@ -106,7 +114,7 @@ const paymentRateLimit = rateLimit({
   store: redis && RedisStore ? new RedisStore({
     sendCommand: (...args) => redis.call(...args)
   }) : undefined,
-  onLimitReached: async (req) => {
+  handler: async (req, res) => {
     await logSecurityEvent({
       eventType: 'RATE_LIMIT_EXCEEDED',
       severity: 'critical',
@@ -115,7 +123,37 @@ const paymentRateLimit = rateLimit({
       userAgent: req.get('User-Agent'),
       metadata: { userId: req.user?.userId }
     })
+    res.status(429).json({
+      error: 'Too many payment attempts, please try again later',
+      retryAfter: '1 minute'
+    })
   }
+})
+
+// Location update rate limiting
+const locationRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 1 per second max
+  message: {
+    error: 'Too many location updates, please slow down',
+    retryAfter: '1 minute'
+  },
+  store: redis && RedisStore ? new RedisStore({
+    sendCommand: (...args) => redis.call(...args)
+  }) : undefined
+})
+
+// File upload rate limiting
+const uploadRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // 5 uploads per minute
+  message: {
+    error: 'Too many file uploads, please wait',
+    retryAfter: '1 minute'
+  },
+  store: redis && RedisStore ? new RedisStore({
+    sendCommand: (...args) => redis.call(...args)
+  }) : undefined
 })
 
 // Admin rate limiting
@@ -135,8 +173,9 @@ const adminRateLimit = rateLimit({
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
   delayAfter: 100, // Allow 100 requests per windowMs without delay
-  delayMs: 500, // Add 500ms delay per request after delayAfter
+  delayMs: () => 500, // Add 500ms delay per request after delayAfter
   maxDelayMs: 20000, // Maximum delay of 20 seconds
+  validate: { delayMs: false }, // Disable the warning
   store: redis && RedisStore ? new RedisStore({
     sendCommand: (...args) => redis.call(...args)
   }) : undefined
@@ -158,14 +197,21 @@ const validateInput = (validations) => {
         userAgent: req.get('User-Agent'),
         metadata: { 
           errors: errors.array(),
-          body: req.body,
+          endpoint: req.path,
           userId: req.user?.userId
         }
       })
       
+      // Sanitize error messages for production
+      const sanitizedErrors = errors.array().map(error => ({
+        field: error.param,
+        message: error.msg,
+        value: typeof error.value === 'string' ? error.value.substring(0, 50) : '[filtered]'
+      }))
+      
       return res.status(400).json({
         error: 'Invalid input',
-        details: errors.array()
+        details: process.env.NODE_ENV === 'development' ? sanitizedErrors : 'Validation failed'
       })
     }
     
@@ -173,16 +219,18 @@ const validateInput = (validations) => {
   }
 }
 
-// Common validation schemas
+// Enhanced validation schemas with stricter rules
 const validationSchemas = {
   email: body('email')
     .isEmail()
     .normalizeEmail()
     .isLength({ max: 255 })
+    .matches(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)
     .withMessage('Valid email is required'),
     
   phone: body('phone')
     .isMobilePhone('en-IN')
+    .isLength({ min: 10, max: 13 })
     .withMessage('Valid Indian phone number is required'),
     
   password: body('password')
@@ -194,6 +242,7 @@ const validationSchemas = {
     .trim()
     .isLength({ min: 2, max: 100 })
     .matches(/^[a-zA-Z\s]+$/)
+    .escape()
     .withMessage('Name must be 2-100 characters, letters only'),
     
   userType: body('userType')
@@ -202,12 +251,56 @@ const validationSchemas = {
     
   amount: body('amount')
     .isFloat({ min: 1, max: 100000 })
+    .toFloat()
     .withMessage('Amount must be between ₹1 and ₹100,000'),
     
   coordinates: [
     body('lat').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
     body('lng').isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude')
-  ]
+  ],
+
+  address: body('address')
+    .trim()
+    .isLength({ min: 10, max: 500 })
+    .escape()
+    .withMessage('Address must be 10-500 characters'),
+
+  deliveryId: body('deliveryId')
+    .isUUID()
+    .withMessage('Invalid delivery ID format'),
+
+  paymentId: body('paymentId')
+    .isUUID()
+    .withMessage('Invalid payment ID format'),
+
+  // Prevent XSS and injection attacks
+  safeString: (field, min = 1, max = 255) => 
+    body(field)
+      .trim()
+      .isLength({ min, max })
+      .escape()
+      .matches(/^[a-zA-Z0-9\s\-_.,!?]+$/)
+      .withMessage(`${field} contains invalid characters`),
+
+  // File upload validation
+  fileUpload: body('file')
+    .custom((value, { req }) => {
+      if (!req.file) {
+        throw new Error('File is required')
+      }
+      
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        throw new Error('Invalid file type')
+      }
+      
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (req.file.size > maxSize) {
+        throw new Error('File too large')
+      }
+      
+      return true
+    })
 }
 
 // Honeypot middleware
@@ -282,6 +375,8 @@ module.exports = {
   globalRateLimit,
   authRateLimit,
   paymentRateLimit,
+  locationRateLimit,
+  uploadRateLimit,
   adminRateLimit,
   speedLimiter,
   validateInput,

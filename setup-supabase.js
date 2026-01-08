@@ -9,7 +9,7 @@ const supabaseUrl = 'https://qflkxzqpuvtggzdpqfho.supabase.co'
 const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmbGt4enFwdXZ0Z2d6ZHBxZmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NjA5MTIsImV4cCI6MjA4MzQzNjkxMn0.0yTRt37OPoiXuDYOJE1rUTvc7X3LQYux5-vj6uYO8P4'
 
 async function setupSupabaseDatabase() {
-  console.log('🚀 Setting up FairLoad Supabase Database...\n')
+  console.log('🚀 Setting up PakkaDrop Supabase Database...\n')
 
   try {
     // Create Supabase client
@@ -34,7 +34,7 @@ async function setupSupabaseDatabase() {
     
     console.log('4. Run the query to create all tables and policies\n')
     
-    console.log('5. Your database will be ready for the FairLoad application!\n')
+    console.log('5. Your database will be ready for the PakkaDrop application!\n')
 
     // Test connection
     console.log('🔍 Testing Supabase connection...')

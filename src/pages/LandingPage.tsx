@@ -64,7 +64,7 @@ const LandingPage: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <Truck className="h-8 w-8 text-primary-600" />
-              <span className="text-2xl font-bold text-gray-900">FairLoad</span>
+              <span className="text-2xl font-bold text-gray-900">PakkaDrop</span>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -204,7 +204,7 @@ const LandingPage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Why FairLoad is Different
+              Why PakkaDrop is Different
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Built for fairness, transparency, and long-term sustainability. 
@@ -352,7 +352,7 @@ const LandingPage: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <Truck className="h-6 w-6 text-primary-400" />
-                <span className="text-xl font-bold">FairLoad</span>
+                <span className="text-xl font-bold">PakkaDrop</span>
               </div>
               <p className="text-gray-400 mb-4">
                 Fair logistics for everyone. Transparent, reliable, and sustainable.
@@ -391,7 +391,7 @@ const LandingPage: React.FC = () => {
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 FairLoad. All rights reserved. Built with fairness in mind.</p>
+            <p>&copy; 2024 PakkaDrop. All rights reserved. Built with fairness in mind.</p>
           </div>
         </div>
       </footer>

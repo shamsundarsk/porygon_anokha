@@ -5,7 +5,7 @@ const crypto = require('crypto')
 
 const BASE_URL = 'http://localhost:5004'
 
-console.log('🔒 FairLoad Security Test Suite')
+console.log('🔒 PakkaDrop Security Test Suite')
 console.log('================================')
 
 // Test configuration

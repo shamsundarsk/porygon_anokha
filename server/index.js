@@ -103,36 +103,74 @@ app.use('/api/maps', mapRoutes)
 app.use('/api/payments', paymentRoutes)
 
 // Honeypot routes (add before other routes)
-app.get('/admin', async (req, res) => {
-  // Log honeypot access
-  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
-  res.status(404).json({ error: 'Not found' })
-})
+const honeypotRoutes = [
+  '/admin', '/wp-admin', '/phpmyadmin', '/.env', '/config',
+  '/administrator', '/admin.php', '/wp-login.php', '/login.php',
+  '/xmlrpc.php', '/wp-config.php', '/database.sql', '/backup.sql',
+  '/api/admin', '/api/config', '/api/debug', '/debug',
+  '/.git/config', '/server-status', '/server-info'
+]
 
-app.get('/wp-admin', async (req, res) => {
-  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
-  res.status(404).json({ error: 'Not found' })
-})
+honeypotRoutes.forEach(route => {
+  app.get(route, async (req, res) => {
+    await logSecurityEvent({
+      eventType: 'HONEYPOT_ACCESS',
+      severity: 'high',
+      description: `Honeypot endpoint accessed: ${req.method} ${req.path}`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      metadata: { 
+        endpoint: req.path,
+        method: req.method,
+        headers: req.headers,
+        query: req.query
+      }
+    })
+    
+    // Store honeypot access in database
+    try {
+      await prisma.honeypotLog.create({
+        data: {
+          endpoint: req.path,
+          method: req.method,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          headers: JSON.stringify(req.headers),
+          query: JSON.stringify(req.query)
+        }
+      })
+    } catch (error) {
+      console.error('Honeypot logging error:', error)
+    }
+    
+    // Return realistic-looking error to not reveal it's a honeypot
+    res.status(404).json({ error: 'Not found' })
+  })
 
-app.get('/phpmyadmin', async (req, res) => {
-  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
-  res.status(404).json({ error: 'Not found' })
-})
-
-app.get('/.env', async (req, res) => {
-  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
-  res.status(404).json({ error: 'Not found' })
-})
-
-app.get('/config', async (req, res) => {
-  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
-  res.status(404).json({ error: 'Not found' })
+  // Also handle POST requests to honeypots
+  app.post(route, async (req, res) => {
+    await logSecurityEvent({
+      eventType: 'HONEYPOT_ACCESS',
+      severity: 'critical',
+      description: `Honeypot POST attempt: ${req.method} ${req.path}`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      metadata: { 
+        endpoint: req.path,
+        method: req.method,
+        headers: req.headers,
+        body: req.body
+      }
+    })
+    
+    res.status(404).json({ error: 'Not found' })
+  })
 })
 
 // Socket.IO with authentication and security
 io.use(authenticateSocket)
 
-// Store active connections securely
+// Store active connections securely with user binding
 const activeDrivers = new Map()
 const activeDeliveries = new Map()
 const userSockets = new Map()
@@ -140,37 +178,85 @@ const userSockets = new Map()
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.userId} (${socket.userType})`)
   
-  // Store user socket mapping
-  userSockets.set(socket.userId, socket.id)
+  // Store user socket mapping with security context
+  userSockets.set(socket.userId, {
+    socketId: socket.id,
+    userType: socket.userType,
+    connectedAt: socket.connectionTime,
+    ipAddress: socket.ipAddress
+  })
   
-  // Log connection
+  // Log connection with full context
   logAuditEvent({
     userId: socket.userId,
     action: 'CREATE',
     resource: 'socket_connection',
-    ipAddress: socket.handshake.address,
-    userAgent: socket.handshake.headers['user-agent']
+    ipAddress: socket.ipAddress,
+    userAgent: socket.userAgent,
+    metadata: { userType: socket.userType }
   })
 
-  // Driver location updates (only for drivers)
+  // DRIVER LOCATION UPDATES - Strict role and assignment verification
   socket.on('driver-location-update', rateLimitSocket('driver-location-update', 60, 60000), async (data) => {
+    // STRICT: Only drivers can send location updates
     if (socket.userType !== 'DRIVER') {
       await logSecurityEvent({
         userId: socket.userId,
-        eventType: 'UNAUTHORIZED_ACCESS',
+        eventType: 'UNAUTHORIZED_SOCKET_EVENT',
         severity: 'high',
         description: 'Non-driver attempted location update',
-        ipAddress: socket.handshake.address,
-        userAgent: socket.handshake.headers['user-agent']
+        ipAddress: socket.ipAddress,
+        userAgent: socket.userAgent,
+        metadata: { userType: socket.userType }
       })
-      return socket.emit('error', { message: 'Unauthorized' })
+      return socket.emit('error', { message: 'Unauthorized: Only drivers can update location' })
     }
 
     const { lat, lng, heading, deliveryId } = data
     
-    // Validate coordinates
-    if (!lat || !lng || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return socket.emit('error', { message: 'Invalid coordinates' })
+    // Validate coordinates strictly
+    if (!lat || !lng || typeof lat !== 'number' || typeof lng !== 'number') {
+      return socket.emit('error', { message: 'Invalid coordinates format' })
+    }
+    
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      await logSecurityEvent({
+        userId: socket.userId,
+        eventType: 'INVALID_LOCATION_DATA',
+        severity: 'medium',
+        description: 'Driver sent invalid coordinates',
+        ipAddress: socket.ipAddress,
+        userAgent: socket.userAgent,
+        metadata: { lat, lng }
+      })
+      return socket.emit('error', { message: 'Invalid coordinates range' })
+    }
+
+    // If deliveryId provided, verify driver is assigned to this delivery
+    if (deliveryId) {
+      const delivery = await prisma.delivery.findUnique({
+        where: { id: deliveryId },
+        select: { driverId: true, status: true }
+      })
+
+      if (!delivery || delivery.driverId !== socket.userId) {
+        await logSecurityEvent({
+          userId: socket.userId,
+          eventType: 'UNAUTHORIZED_DELIVERY_UPDATE',
+          severity: 'high',
+          description: 'Driver attempted location update for unassigned delivery',
+          ipAddress: socket.ipAddress,
+          userAgent: socket.userAgent,
+          metadata: { deliveryId, assignedDriver: delivery?.driverId }
+        })
+        return socket.emit('error', { message: 'Not assigned to this delivery' })
+      }
+
+      // Only allow location updates for active deliveries
+      const activeStatuses = ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']
+      if (!activeStatuses.includes(delivery.status)) {
+        return socket.emit('error', { message: 'Cannot update location for inactive delivery' })
+      }
     }
 
     // Store driver location securely
@@ -180,7 +266,8 @@ io.on('connection', (socket) => {
       heading, 
       socketId: socket.id, 
       lastUpdate: Date.now(),
-      deliveryId
+      deliveryId,
+      verified: true
     })
     
     // Update database
@@ -205,20 +292,29 @@ io.on('connection', (socket) => {
     }
   })
 
-  // Join delivery tracking room (with authorization)
+  // JOIN DELIVERY TRACKING - Strict ownership verification
   socket.on('track-delivery', rateLimitSocket('track-delivery', 10, 60000), async (deliveryId) => {
     try {
-      // Verify user can track this delivery
+      if (!deliveryId || typeof deliveryId !== 'string') {
+        return socket.emit('error', { message: 'Invalid delivery ID' })
+      }
+
+      // Verify user can track this delivery - STRICT ownership check
       const delivery = await prisma.delivery.findUnique({
         where: { id: deliveryId },
-        select: { customerId: true, driverId: true }
+        select: { 
+          id: true,
+          customerId: true, 
+          driverId: true,
+          status: true
+        }
       })
 
       if (!delivery) {
         return socket.emit('error', { message: 'Delivery not found' })
       }
 
-      // Check authorization
+      // STRICT: Only customer, assigned driver, or admin can track
       const canTrack = delivery.customerId === socket.userId || 
                       delivery.driverId === socket.userId || 
                       socket.userType === 'ADMIN'
@@ -226,18 +322,31 @@ io.on('connection', (socket) => {
       if (!canTrack) {
         await logSecurityEvent({
           userId: socket.userId,
-          eventType: 'UNAUTHORIZED_ACCESS',
+          eventType: 'UNAUTHORIZED_DELIVERY_TRACKING',
           severity: 'high',
           description: 'Unauthorized delivery tracking attempt',
-          ipAddress: socket.handshake.address,
-          userAgent: socket.handshake.headers['user-agent'],
-          metadata: { deliveryId }
+          ipAddress: socket.ipAddress,
+          userAgent: socket.userAgent,
+          metadata: { 
+            deliveryId,
+            customerId: delivery.customerId,
+            driverId: delivery.driverId,
+            userType: socket.userType
+          }
         })
-        return socket.emit('error', { message: 'Unauthorized' })
+        return socket.emit('error', { message: 'Unauthorized: Cannot track this delivery' })
       }
 
+      // Join room for this specific delivery
       socket.join(`delivery-${deliveryId}`)
-      console.log(`📍 User ${socket.userId} tracking delivery: ${deliveryId}`)
+      console.log(`📍 User ${socket.userId} (${socket.userType}) tracking delivery: ${deliveryId}`)
+      
+      // Send current delivery status
+      socket.emit('delivery-status', {
+        deliveryId,
+        status: delivery.status,
+        timestamp: new Date()
+      })
       
     } catch (error) {
       console.error('Track delivery error:', error)
@@ -245,19 +354,31 @@ io.on('connection', (socket) => {
     }
   })
 
-  // Handle disconnection
-  socket.on('disconnect', async () => {
-    console.log(`❌ User disconnected: ${socket.userId}`)
+  // LEAVE DELIVERY TRACKING
+  socket.on('stop-tracking', async (deliveryId) => {
+    if (deliveryId) {
+      socket.leave(`delivery-${deliveryId}`)
+      console.log(`📍 User ${socket.userId} stopped tracking delivery: ${deliveryId}`)
+    }
+  })
+
+  // Handle disconnection with cleanup
+  socket.on('disconnect', async (reason) => {
+    console.log(`❌ User disconnected: ${socket.userId} (${reason})`)
     
     // Clean up active driver location
     if (socket.userType === 'DRIVER') {
       activeDrivers.delete(socket.userId)
       
       // Update driver offline status
-      await prisma.user.update({
-        where: { id: socket.userId },
-        data: { isOnline: false, lastSeen: new Date() }
-      })
+      try {
+        await prisma.user.update({
+          where: { id: socket.userId },
+          data: { isOnline: false, lastSeen: new Date() }
+        })
+      } catch (error) {
+        console.error('Error updating driver offline status:', error)
+      }
     }
     
     // Remove from user socket mapping
@@ -267,8 +388,26 @@ io.on('connection', (socket) => {
       userId: socket.userId,
       action: 'DELETE',
       resource: 'socket_connection',
-      ipAddress: socket.handshake.address,
-      userAgent: socket.handshake.headers['user-agent']
+      ipAddress: socket.ipAddress,
+      userAgent: socket.userAgent,
+      metadata: { 
+        reason,
+        userType: socket.userType,
+        connectionDuration: Date.now() - socket.connectionTime.getTime()
+      }
+    })
+  })
+
+  // Handle socket errors
+  socket.on('error', async (error) => {
+    await logSecurityEvent({
+      userId: socket.userId,
+      eventType: 'SOCKET_ERROR',
+      severity: 'medium',
+      description: 'Socket error occurred',
+      ipAddress: socket.ipAddress,
+      userAgent: socket.userAgent,
+      metadata: { error: error.message }
     })
   })
 })
@@ -325,7 +464,7 @@ async function startServer() {
     
     // Start server
     server.listen(PORT, () => {
-      console.log(`🚀 FairLoad server running on port ${PORT}`)
+      console.log(`🚀 PakkaDrop server running on port ${PORT}`)
       console.log(`🔒 Security measures active`)
       console.log(`📊 Environment: ${process.env.NODE_ENV}`)
       console.log(`📱 Socket.io enabled with authentication`)

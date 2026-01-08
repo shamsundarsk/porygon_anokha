@@ -1,4 +1,4 @@
-# 🚛 FairLoad - Secure Logistics Platform
+# 🚛 PakkaDrop - Secure Logistics Platform
 
 **Tagline:** Enterprise-grade logistics platform with military-level security.
 
@@ -277,9 +277,9 @@ npm run test-security
 
 ## 📞 **Support**
 
-- **Security Issues**: security@fairload.com
-- **General Support**: support@fairload.com
-- **Documentation**: [docs.fairload.com](https://docs.fairload.com)
+- **Security Issues**: security@pakkadrop.com
+- **General Support**: support@pakkadrop.com
+- **Documentation**: [docs.pakkadrop.com](https://docs.pakkadrop.com)
 
 ## 📄 **License**
 
@@ -365,7 +365,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### **1. Clone Repository**
 ```bash
 git clone <repository-url>
-cd fairload-platform
+cd pakkadrop-platform
 ```
 
 ### **2. Install Dependencies**
@@ -381,7 +381,7 @@ npm install
 3. Copy connection string
 4. Update `.env` file:
 ```env
-DATABASE_URL="postgresql://username:password@ep-xxx.neon.tech/fairload_db?sslmode=require"
+DATABASE_URL="postgresql://username:password@ep-xxx.neon.tech/pakkadrop_db?sslmode=require"
 ```
 
 #### **Option B: Supabase**
@@ -401,10 +401,10 @@ brew install postgresql  # macOS
 sudo apt install postgresql  # Ubuntu
 
 # Create database
-createdb fairload_db
+createdb pakkadrop_db
 
 # Update .env
-DATABASE_URL="postgresql://username:password@localhost:5432/fairload_db"
+DATABASE_URL="postgresql://username:password@localhost:5432/pakkadrop_db"
 ```
 
 ### **4. Environment Configuration**
@@ -494,8 +494,8 @@ npm install -g @expo/cli
 
 ### **2. Create Mobile App**
 ```bash
-npx create-expo-app FairLoadMobile --template blank-typescript
-cd FairLoadMobile
+npx create-expo-app PakkaDropMobile --template blank-typescript
+cd PakkaDropMobile
 ```
 
 ### **3. Install Dependencies**
@@ -673,13 +673,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 **Support**
 
-- **Documentation**: [docs.fairload.com](https://docs.fairload.com)
-- **Community**: [community.fairload.com](https://community.fairload.com)
-- **Email**: support@fairload.com
-- **Discord**: [discord.gg/fairload](https://discord.gg/fairload)
+- **Documentation**: [docs.pakkadrop.com](https://docs.pakkadrop.com)
+- **Community**: [community.pakkadrop.com](https://community.pakkadrop.com)
+- **Email**: support@pakkadrop.com
+- **Discord**: [discord.gg/pakkadrop](https://discord.gg/pakkadrop)
 
 ---
 
-**FairLoad** - Because logistics should be fair for everyone. 🚛✨
+**PakkaDrop** - Because logistics should be fair for everyone. 🚛✨
 
 Built with ❤️ for the Indian logistics ecosystem.

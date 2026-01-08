@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
 
-console.log('🚛 FairLoad Setup Script')
+console.log('🚛 PakkaDrop Setup Script')
 console.log('========================\n')
 
 // Check if .env exists

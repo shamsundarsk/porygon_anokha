@@ -3,7 +3,7 @@
 const { execSync } = require('child_process')
 const fs = require('fs')
 
-console.log('🚀 FairLoad Quick Start')
+console.log('🚀 PakkaDrop Quick Start')
 console.log('=======================')
 
 // Check if .env exists

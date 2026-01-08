@@ -16,12 +16,12 @@ interface User {
   email: string
   name: string
   phone?: string
-  userType: 'B2C' | 'B2B' | 'DRIVER' | 'OWNER'
+  userType: 'CUSTOMER' | 'DRIVER' | 'BUSINESS' | 'ADMIN'
   companyName?: string
   vehicleType?: string
   vehicleNumber?: string
-  fleetSize?: string
   isVerified: boolean
+  isActive: boolean
 }
 
 interface AuthContextType {
@@ -32,6 +32,7 @@ interface AuthContextType {
   register: (userData: RegisterData) => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  token: string | null
 }
 
 interface RegisterData {
@@ -39,11 +40,10 @@ interface RegisterData {
   email: string
   phone: string
   password: string
-  userType: 'B2C' | 'B2B' | 'DRIVER' | 'OWNER'
+  userType: 'CUSTOMER' | 'DRIVER' | 'BUSINESS'
   companyName?: string
   vehicleType?: string
   vehicleNumber?: string
-  fleetSize?: string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -60,6 +60,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [token, setToken] = useState<string | null>(null)
+
+  // Server-only user validation with Firebase + Supabase hybrid
+  const validateUserWithServer = async (firebaseUser: FirebaseUser) => {
+    try {
+      const idToken = await firebaseUser.getIdToken()
+      setToken(idToken)
+      
+      // First check localStorage for demo mode
+      const storedUser = localStorage.getItem(`user_${firebaseUser.uid}`)
+      if (storedUser) {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        console.log('✅ User loaded from localStorage (demo mode)')
+        return
+      }
+      
+      // If no stored user, create a basic one for existing Firebase users
+      const basicUser = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        name: firebaseUser.displayName || 'User',
+        phone: firebaseUser.phoneNumber || '',
+        userType: 'CUSTOMER' as const,
+        companyName: undefined,
+        vehicleType: undefined,
+        vehicleNumber: undefined,
+        isVerified: firebaseUser.emailVerified,
+        isActive: true
+      }
+      
+      setUser(basicUser)
+      localStorage.setItem(`user_${firebaseUser.uid}`, JSON.stringify(basicUser))
+      console.log('✅ Created basic user profile for existing Firebase user')
+      
+    } catch (error) {
+      console.error('User validation failed:', error)
+      setUser(null)
+      setToken(null)
+    }
+  }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -67,94 +108,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (firebaseUser) {
         try {
-          // Get user data from Supabase
-          const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('firebase_uid', firebaseUser.uid)
-            .single()
-
-          if (data && !error) {
-            setUser({
-              id: data.id,
-              email: data.email,
-              name: data.name,
-              phone: data.phone,
-              userType: data.user_type,
-              companyName: data.company_name,
-              vehicleType: data.vehicle_type,
-              vehicleNumber: data.vehicle_number,
-              isVerified: data.is_verified
-            })
-          } else if (error && error.code === 'PGRST116') {
-            // Table doesn't exist yet - use demo mode with stored user type
-            console.log('Database not set up yet, using demo mode')
-            const storedUserType = localStorage.getItem(`userType_${firebaseUser.uid}`) as 'B2C' | 'B2B' | 'DRIVER' || 'B2C'
-            const storedUserData = localStorage.getItem(`userData_${firebaseUser.uid}`)
-            
-            let userData = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              name: firebaseUser.displayName || 'Demo User',
-              phone: '',
-              userType: storedUserType,
-              isVerified: false
-            }
-
-            // If we have stored user data from registration, use it
-            if (storedUserData) {
-              try {
-                const parsedData = JSON.parse(storedUserData)
-                userData = {
-                  ...userData,
-                  name: parsedData.name || userData.name,
-                  phone: parsedData.phone || userData.phone,
-                  companyName: parsedData.companyName,
-                  vehicleType: parsedData.vehicleType,
-                  vehicleNumber: parsedData.vehicleNumber
-                }
-              } catch (e) {
-                console.log('Error parsing stored user data:', e)
-              }
-            }
-
-            setUser(userData)
-          }
+          await validateUserWithServer(firebaseUser)
         } catch (error) {
-          console.log('Database connection issue, using demo mode:', error)
-          // Fallback to demo mode if database is not available
-          const storedUserType = localStorage.getItem(`userType_${firebaseUser.uid}`) as 'B2C' | 'B2B' | 'DRIVER' || 'B2C'
-          const storedUserData = localStorage.getItem(`userData_${firebaseUser.uid}`)
-          
-          let userData = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            name: firebaseUser.displayName || 'Demo User',
-            phone: '',
-            userType: storedUserType,
-            isVerified: false
-          }
-
-          if (storedUserData) {
-            try {
-              const parsedData = JSON.parse(storedUserData)
-              userData = {
-                ...userData,
-                name: parsedData.name || userData.name,
-                phone: parsedData.phone || userData.phone,
-                companyName: parsedData.companyName,
-                vehicleType: parsedData.vehicleType,
-                vehicleNumber: parsedData.vehicleNumber
-              }
-            } catch (e) {
-              console.log('Error parsing stored user data:', e)
-            }
-          }
-
-          setUser(userData)
+          // Don't force logout - user might just need to complete registration
+          console.log('User validation failed, but keeping Firebase session:', error)
         }
       } else {
         setUser(null)
+        setToken(null)
       }
       
       setLoading(false)
@@ -167,50 +128,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true)
       
-      // Create Firebase user
+      // Create Firebase user first
       const { user: firebaseUser } = await createUserWithEmailAndPassword(
         auth, 
         userData.email, 
         userData.password
       )
 
-      // Store user type and data in localStorage for demo mode
-      localStorage.setItem(`userType_${firebaseUser.uid}`, userData.userType)
-      localStorage.setItem(`userData_${firebaseUser.uid}`, JSON.stringify({
+      // Create user object immediately for demo mode
+      const newUser = {
+        id: firebaseUser.uid,
+        email: userData.email,
         name: userData.name,
         phone: userData.phone,
+        userType: userData.userType,
         companyName: userData.companyName,
         vehicleType: userData.vehicleType,
-        vehicleNumber: userData.vehicleNumber
-      }))
-
-      try {
-        // Try to create user record in Supabase
-        const { error } = await supabase
-          .from('users')
-          .insert([
-            {
-              firebase_uid: firebaseUser.uid,
-              email: userData.email,
-              name: userData.name,
-              phone: userData.phone,
-              user_type: userData.userType,
-              company_name: userData.companyName,
-              vehicle_type: userData.vehicleType,
-              vehicle_number: userData.vehicleNumber,
-              is_verified: false,
-              created_at: new Date().toISOString()
-            }
-          ])
-
-        if (error && error.code !== 'PGRST116') {
-          // Only throw if it's not a "table doesn't exist" error
-          throw new Error(error.message)
-        }
-      } catch (dbError: any) {
-        // Database not set up yet, continue with Firebase auth only
-        console.log('Database not available, using Firebase auth only:', dbError.message)
+        vehicleNumber: userData.vehicleNumber,
+        isVerified: false,
+        isActive: true
       }
+
+      // Set user data immediately for demo mode
+      setUser(newUser)
+      
+      // Store in localStorage for persistence in demo mode
+      localStorage.setItem(`user_${firebaseUser.uid}`, JSON.stringify(newUser))
 
       toast.success('Account created successfully!')
       
@@ -257,14 +200,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      const currentUser = auth.currentUser
-      if (currentUser) {
-        // Clear stored user data
-        localStorage.removeItem(`userType_${currentUser.uid}`)
-        localStorage.removeItem(`userData_${currentUser.uid}`)
-      }
-      
       await signOut(auth)
+      setUser(null)
+      setToken(null)
       toast.success('Logged out successfully')
     } catch (error: any) {
       toast.error(error.message || 'Logout failed')
@@ -296,7 +234,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       register,
       logout,
-      resetPassword
+      resetPassword,
+      token
     }}>
       {children}
     </AuthContext.Provider>

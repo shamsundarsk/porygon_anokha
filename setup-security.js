@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 
-console.log('🔒 FairLoad Security Setup')
+console.log('🔒 PakkaDrop Security Setup')
 console.log('==========================')
 
 // Generate secure secrets
@@ -20,7 +20,7 @@ const generateSecrets = () => {
 const createSecureEnv = () => {
   const secrets = generateSecrets()
   
-  const envContent = `# FairLoad Security Configuration
+  const envContent = `# PakkaDrop Security Configuration
 # Generated on: ${new Date().toISOString()}
 # IMPORTANT: Never commit this file to version control!
 

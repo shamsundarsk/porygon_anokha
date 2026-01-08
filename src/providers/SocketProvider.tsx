@@ -31,7 +31,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Initialize socket connection
       const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5004', {
         auth: {
-          token: localStorage.getItem('fairload_token')
+          token: localStorage.getItem('pakkadrop_token')
         }
       })
 

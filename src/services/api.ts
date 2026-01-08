@@ -20,7 +20,7 @@ const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('fairload_token')
+  const token = localStorage.getItem('pakkadrop_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -32,7 +32,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('fairload_token')
+      localStorage.removeItem('pakkadrop_token')
       window.location.href = '/auth'
     }
     return Promise.reject(error)

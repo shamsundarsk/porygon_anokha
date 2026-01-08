@@ -4,7 +4,7 @@ import { useAuth } from '../providers/AuthProvider'
 import { User, Building2, Truck } from 'lucide-react'
 
 const UserTypeSelector: React.FC = () => {
-  const [selectedType, setSelectedType] = useState<'B2C' | 'B2B' | 'DRIVER' | 'OWNER'>('B2C')
+  const [selectedType, setSelectedType] = useState<'CUSTOMER' | 'BUSINESS' | 'DRIVER' | 'ADMIN'>('CUSTOMER')
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -15,16 +15,16 @@ const UserTypeSelector: React.FC = () => {
       
       // Navigate directly to the appropriate dashboard
       switch (selectedType) {
-        case 'B2C':
+        case 'CUSTOMER':
           navigate('/customer-dashboard')
           break
-        case 'B2B':
+        case 'BUSINESS':
           navigate('/business-dashboard')
           break
         case 'DRIVER':
           navigate('/driver-dashboard')
           break
-        case 'OWNER':
+        case 'ADMIN':
           navigate('/owner-dashboard')
           break
         default:
@@ -41,22 +41,22 @@ const UserTypeSelector: React.FC = () => {
             <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">🚛</span>
             </div>
-            <span className="text-2xl font-bold text-slate-900">FairLoad</span>
+            <span className="text-2xl font-bold text-slate-900">PakkaDrop</span>
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Choose Your Account Type</h2>
-          <p className="text-slate-600 mt-2">Select how you'll be using FairLoad</p>
+          <p className="text-slate-600 mt-2">Select how you'll be using PakkaDrop</p>
         </div>
 
         <div className="space-y-3 mb-6">
           {[
             { 
-              value: 'B2C' as const, 
+              value: 'CUSTOMER' as const, 
               label: 'Personal Customer', 
               icon: User, 
               description: 'Individual deliveries and personal use' 
             },
             { 
-              value: 'B2B' as const, 
+              value: 'BUSINESS' as const, 
               label: 'Business Account', 
               icon: Building2, 
               description: 'Enterprise logistics and team management' 
@@ -68,7 +68,7 @@ const UserTypeSelector: React.FC = () => {
               description: 'Earn money by delivering packages' 
             },
             { 
-              value: 'OWNER' as const, 
+              value: 'ADMIN' as const, 
               label: 'Fleet Owner', 
               icon: Building2, 
               description: 'Manage multiple vehicles and drivers' 

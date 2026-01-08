@@ -62,7 +62,7 @@ const EnhancedCustomerDashboard: React.FC = () => {
 
   const fetchDeliveries = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/deliveries/my-deliveries', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -79,7 +79,7 @@ const EnhancedCustomerDashboard: React.FC = () => {
 
   const fetchCurrentDeliveries = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/deliveries/current', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -96,7 +96,7 @@ const EnhancedCustomerDashboard: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/customers/stats', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -113,7 +113,7 @@ const EnhancedCustomerDashboard: React.FC = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/customers/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`

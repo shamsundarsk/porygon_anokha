@@ -129,7 +129,7 @@ const DriverDashboard = () => {
                 <Truck className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">FairLoad Driver</h1>
+                <h1 className="text-xl font-bold text-slate-900">PakkaDrop Driver</h1>
                 <p className="text-sm text-slate-600">{user?.name}</p>
               </div>
             </div>

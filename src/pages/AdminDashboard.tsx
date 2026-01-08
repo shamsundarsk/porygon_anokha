@@ -35,7 +35,7 @@ const AdminDashboard: React.FC = () => {
 
   const fetchAdminStats = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -52,7 +52,7 @@ const AdminDashboard: React.FC = () => {
 
   const fetchDisputes = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/admin/disputes', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -69,7 +69,7 @@ const AdminDashboard: React.FC = () => {
 
   const fetchRecentBookings = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/admin/deliveries', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -86,7 +86,7 @@ const AdminDashboard: React.FC = () => {
 
   const fetchDriverApplications = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/admin/drivers/applications', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -103,7 +103,7 @@ const AdminDashboard: React.FC = () => {
 
   const approveDriver = async (driverId: string) => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch(`/api/admin/drivers/${driverId}/approve`, {
         method: 'POST',
         headers: {
@@ -121,7 +121,7 @@ const AdminDashboard: React.FC = () => {
 
   const resolveDispute = async (disputeId: string, resolution: string) => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch(`/api/admin/disputes/${disputeId}/resolve`, {
         method: 'POST',
         headers: {

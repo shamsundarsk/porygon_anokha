@@ -18,28 +18,48 @@ const envSchema = Joi.object({
   // Encryption
   ENCRYPTION_KEY: Joi.string().length(64).required(), // 32 bytes hex
   
+  // Firebase (optional for development)
+  FIREBASE_PROJECT_ID: Joi.string().allow('').optional(),
+  FIREBASE_API_KEY: Joi.string().allow('').optional(),
+  FIREBASE_AUTH_DOMAIN: Joi.string().allow('').optional(),
+  FIREBASE_CLIENT_EMAIL: Joi.string().allow('').optional(),
+  FIREBASE_PRIVATE_KEY: Joi.string().allow('').optional(),
+  
+  // Supabase (optional for development)
+  SUPABASE_URL: Joi.string().optional(),
+  SUPABASE_ANON_KEY: Joi.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: Joi.string().optional(),
+  
   // Rate Limiting (optional for development)
   REDIS_URL: Joi.string().optional(),
   
-  // External APIs
-  MAPMYINDIA_API_KEY: Joi.string().required(),
-  MAPBOX_ACCESS_TOKEN: Joi.string().required(),
+  // External APIs (optional for development)
+  MAPMYINDIA_API_KEY: Joi.string().allow('').optional(),
+  MAPBOX_ACCESS_TOKEN: Joi.string().allow('').optional(),
   
-  // Payment
-  RAZORPAY_KEY_ID: Joi.string().required(),
-  RAZORPAY_KEY_SECRET: Joi.string().required(),
-  RAZORPAY_WEBHOOK_SECRET: Joi.string().required(),
+  // Payment (optional for development)
+  RAZORPAY_KEY_ID: Joi.string().allow('').optional(),
+  RAZORPAY_KEY_SECRET: Joi.string().allow('').optional(),
+  RAZORPAY_WEBHOOK_SECRET: Joi.string().allow('').optional(),
   
-  // Communication
-  TWILIO_ACCOUNT_SID: Joi.string().required(),
-  TWILIO_AUTH_TOKEN: Joi.string().required(),
-  TWILIO_PHONE_NUMBER: Joi.string().required(),
+  // Communication (optional for development)
+  TWILIO_ACCOUNT_SID: Joi.string().allow('').optional(),
+  TWILIO_AUTH_TOKEN: Joi.string().allow('').optional(),
+  TWILIO_PHONE_NUMBER: Joi.string().allow('').optional(),
   
-  // Email
-  SMTP_HOST: Joi.string().required(),
+  // Email (optional for development)
+  SMTP_HOST: Joi.string().allow('').optional(),
   SMTP_PORT: Joi.number().default(587),
-  SMTP_USER: Joi.string().required(),
-  SMTP_PASS: Joi.string().required(),
+  SMTP_USER: Joi.string().allow('').optional(),
+  SMTP_PASS: Joi.string().allow('').optional(),
+  
+  // File Upload (optional for development)
+  CLOUDINARY_CLOUD_NAME: Joi.string().allow('').optional(),
+  CLOUDINARY_API_KEY: Joi.string().allow('').optional(),
+  CLOUDINARY_API_SECRET: Joi.string().allow('').optional(),
+  
+  // Voice (optional for development)
+  SPEECH_API_KEY: Joi.string().allow('').optional(),
   
   // Security
   BCRYPT_ROUNDS: Joi.number().min(12).default(14),

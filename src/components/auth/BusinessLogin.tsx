@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 
 const BusinessLogin = () => {
   const [isLogin, setIsLogin] = useState(true)
-  const [userType, setUserType] = useState<'B2B' | 'OWNER'>('B2B')
+  const [userType, setUserType] = useState<'BUSINESS' | 'ADMIN'>('BUSINESS')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -27,8 +27,8 @@ const BusinessLogin = () => {
       if (isLogin) {
         await login(email, password)
         // Navigate based on stored user type or default to business
-        const storedType = localStorage.getItem(`userType_${email}`) as 'B2B' | 'OWNER'
-        if (storedType === 'OWNER') {
+        const storedType = localStorage.getItem(`userType_${email}`) as 'BUSINESS' | 'ADMIN'
+        if (storedType === 'ADMIN') {
           setTimeout(() => navigate('/owner-dashboard'), 500)
         } else {
           setTimeout(() => navigate('/business-dashboard'), 500)
@@ -40,7 +40,7 @@ const BusinessLogin = () => {
           password,
           userType
         })
-        if (userType === 'OWNER') {
+        if (userType === 'ADMIN') {
           setTimeout(() => navigate('/owner-dashboard'), 500)
         } else {
           setTimeout(() => navigate('/business-dashboard'), 500)
@@ -104,9 +104,9 @@ const BusinessLogin = () => {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setUserType('B2B')}
+                  onClick={() => setUserType('BUSINESS')}
                   className={`p-3 border rounded-lg text-center transition-colors ${
-                    userType === 'B2B'
+                    userType === 'BUSINESS'
                       ? 'border-purple-500 bg-purple-50 text-purple-900'
                       : 'border-slate-300 hover:border-slate-400'
                   }`}
@@ -117,9 +117,9 @@ const BusinessLogin = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUserType('OWNER')}
+                  onClick={() => setUserType('ADMIN')}
                   className={`p-3 border rounded-lg text-center transition-colors ${
-                    userType === 'OWNER'
+                    userType === 'ADMIN'
                       ? 'border-purple-500 bg-purple-50 text-purple-900'
                       : 'border-slate-300 hover:border-slate-400'
                   }`}
@@ -169,7 +169,7 @@ const BusinessLogin = () => {
                   />
                 </div>
                 
-                {userType === 'OWNER' && (
+                {userType === 'ADMIN' && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Primary Vehicle Type</label>

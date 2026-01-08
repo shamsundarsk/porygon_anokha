@@ -89,7 +89,7 @@ const OwnerDashboard = () => {
                 <Truck className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">FairLoad Fleet Owner</h1>
+                <h1 className="text-xl font-bold text-slate-900">PakkaDrop Fleet Owner</h1>
                 <p className="text-sm text-slate-600">{user?.name} • {stats.totalVehicles} Vehicles</p>
               </div>
             </div>

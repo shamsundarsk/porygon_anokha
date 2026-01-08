@@ -25,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check for stored auth token
-    const token = localStorage.getItem('fairload_token')
+    const token = localStorage.getItem('pakkadrop_token')
     if (token) {
       // Verify token and get user data
       fetchUserData(token)
@@ -45,11 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = await response.json()
         setUser(userData)
       } else {
-        localStorage.removeItem('fairload_token')
+        localStorage.removeItem('pakkadrop_token')
       }
     } catch (error) {
       console.error('Auth error:', error)
-      localStorage.removeItem('fairload_token')
+      localStorage.removeItem('pakkadrop_token')
     } finally {
       setLoading(false)
     }
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const { token, user } = await response.json()
-    localStorage.setItem('fairload_token', token)
+    localStorage.setItem('pakkadrop_token', token)
     setUser(user)
   }
 
@@ -87,12 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const { token, user } = await response.json()
-    localStorage.setItem('fairload_token', token)
+    localStorage.setItem('pakkadrop_token', token)
     setUser(user)
   }
 
   const logout = () => {
-    localStorage.removeItem('fairload_token')
+    localStorage.removeItem('pakkadrop_token')
     setUser(null)
   }
 

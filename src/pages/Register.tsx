@@ -63,7 +63,7 @@ const Register: React.FC = () => {
             <Truck className="h-12 w-12 text-primary-600" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Join FairLoad
+            Join PakkaDrop
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Already have an account?{' '}

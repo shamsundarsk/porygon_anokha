@@ -44,7 +44,7 @@ const CustomerDashboard = () => {
   const { deliveries, loading, createDelivery, getCustomerDeliveries, getStats } = useDeliveries()
   
   // Get customer-specific deliveries
-  const customerDeliveries = user?.id ? getCustomerDeliveries(user.id) : []
+  const customerDeliveries = user?.id ? getCustomerDeliveries(user.id) : getCustomerDeliveries('demo_customer_1')
   const activeDeliveries = customerDeliveries.filter(d => 
     ['PENDING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'].includes(d.status)
   )
@@ -269,7 +269,7 @@ const CustomerDashboard = () => {
                 <Package className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">FairLoad Customer</h1>
+                <h1 className="text-xl font-bold text-slate-900">PakkaDrop Customer</h1>
                 <p className="text-sm text-slate-600">Welcome back, {user?.name}</p>
               </div>
             </div>

@@ -1,15 +1,29 @@
-const jwt = require('jsonwebtoken')
+const admin = require('firebase-admin')
 const { prisma } = require('../database/connection')
 const { logSecurityEvent } = require('../services/audit')
 
-// Socket.IO authentication middleware
+// Initialize Firebase Admin (if not already initialized)
+// Temporarily disabled for development - uncomment and configure for production
+/*
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    })
+  })
+}
+*/
+
+// Socket.IO authentication middleware with Firebase
 const authenticateSocket = async (socket, next) => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1]
     
     if (!token) {
       await logSecurityEvent({
-        eventType: 'UNAUTHORIZED_ACCESS',
+        eventType: 'UNAUTHORIZED_SOCKET_ACCESS',
         severity: 'medium',
         description: 'Socket connection without token',
         ipAddress: socket.handshake.address,
@@ -18,19 +32,17 @@ const authenticateSocket = async (socket, next) => {
       return next(new Error('Authentication required'))
     }
 
-    // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      algorithms: ['HS256'],
-      issuer: 'fairload-api',
-      audience: 'fairload-client'
-    })
+    // Verify Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(token)
+    const firebaseUid = decodedToken.uid
     
-    // Get user from database
+    // Get user from database - MUST exist and be active
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { firebaseUid },
       select: {
         id: true,
         email: true,
+        name: true,
         userType: true,
         isActive: true,
         isVerified: true,
@@ -40,38 +52,29 @@ const authenticateSocket = async (socket, next) => {
 
     if (!user || !user.isActive) {
       await logSecurityEvent({
-        eventType: 'UNAUTHORIZED_ACCESS',
-        severity: 'medium',
-        description: 'Socket connection with invalid user',
-        ipAddress: socket.handshake.address,
-        userAgent: socket.handshake.headers['user-agent'],
-        metadata: { userId: decoded.userId }
-      })
-      return next(new Error('Invalid user'))
-    }
-
-    // Check token version
-    if (decoded.tokenVersion !== user.tokenVersion) {
-      await logSecurityEvent({
-        eventType: 'TOKEN_MANIPULATION',
+        eventType: 'UNAUTHORIZED_SOCKET_ACCESS',
         severity: 'high',
-        description: 'Socket connection with revoked token',
+        description: 'Socket connection with invalid/inactive user',
         ipAddress: socket.handshake.address,
         userAgent: socket.handshake.headers['user-agent'],
-        metadata: { userId: user.id }
+        metadata: { firebaseUid }
       })
-      return next(new Error('Token revoked'))
+      return next(new Error('Invalid or inactive user'))
     }
 
-    // Attach user to socket
+    // Attach user to socket with security context
     socket.user = user
     socket.userId = user.id
     socket.userType = user.userType
+    socket.firebaseUid = firebaseUid
+    socket.connectionTime = new Date()
+    socket.ipAddress = socket.handshake.address
+    socket.userAgent = socket.handshake.headers['user-agent']
     
     next()
   } catch (error) {
     await logSecurityEvent({
-      eventType: 'TOKEN_MANIPULATION',
+      eventType: 'SOCKET_AUTH_ERROR',
       severity: 'high',
       description: 'Socket authentication failed',
       ipAddress: socket.handshake.address,
@@ -83,18 +86,22 @@ const authenticateSocket = async (socket, next) => {
   }
 }
 
-// Role-based socket authorization
-const requireSocketRole = (allowedRoles) => {
-  return (socket, next) => {
+// Enhanced role-based socket authorization with event-specific permissions
+const requireSocketRole = (allowedRoles, eventName = null) => {
+  return async (socket, next) => {
     if (!socket.user || !allowedRoles.includes(socket.userType)) {
-      logSecurityEvent({
+      await logSecurityEvent({
         userId: socket.userId,
-        eventType: 'UNAUTHORIZED_ACCESS',
+        eventType: 'UNAUTHORIZED_SOCKET_ACCESS',
         severity: 'high',
-        description: `Unauthorized socket role access: ${socket.userType}`,
+        description: `Unauthorized socket ${eventName ? 'event' : 'role'} access: ${socket.userType}`,
         ipAddress: socket.handshake.address,
         userAgent: socket.handshake.headers['user-agent'],
-        metadata: { requiredRoles: allowedRoles }
+        metadata: { 
+          requiredRoles: allowedRoles,
+          eventName,
+          userType: socket.userType
+        }
       })
       return next(new Error('Insufficient permissions'))
     }
@@ -102,11 +109,84 @@ const requireSocketRole = (allowedRoles) => {
   }
 }
 
-// Rate limiting for socket events
+// Event-specific authorization
+const authorizeSocketEvent = (eventName) => {
+  const eventPermissions = {
+    'driver-location-update': ['DRIVER'],
+    'track-delivery': ['CUSTOMER', 'DRIVER', 'BUSINESS', 'ADMIN'],
+    'delivery-status-update': ['DRIVER', 'ADMIN'],
+    'customer-message': ['CUSTOMER', 'BUSINESS'],
+    'driver-message': ['DRIVER'],
+    'admin-broadcast': ['ADMIN'],
+    'payment-update': ['CUSTOMER', 'ADMIN']
+  }
+
+  return async (socket, data, next) => {
+    const allowedRoles = eventPermissions[eventName] || []
+    
+    if (!allowedRoles.includes(socket.userType)) {
+      await logSecurityEvent({
+        userId: socket.userId,
+        eventType: 'UNAUTHORIZED_SOCKET_EVENT',
+        severity: 'high',
+        description: `Unauthorized socket event: ${eventName}`,
+        ipAddress: socket.handshake.address,
+        userAgent: socket.handshake.headers['user-agent'],
+        metadata: { 
+          eventName,
+          userType: socket.userType,
+          allowedRoles
+        }
+      })
+      return socket.emit('error', { message: 'Unauthorized event' })
+    }
+
+    // Additional context-specific checks
+    if (eventName === 'track-delivery' && data.deliveryId) {
+      const hasAccess = await verifyDeliveryAccess(socket.userId, socket.userType, data.deliveryId)
+      if (!hasAccess) {
+        await logSecurityEvent({
+          userId: socket.userId,
+          eventType: 'UNAUTHORIZED_DELIVERY_ACCESS',
+          severity: 'high',
+          description: 'Unauthorized delivery tracking attempt',
+          ipAddress: socket.handshake.address,
+          userAgent: socket.handshake.headers['user-agent'],
+          metadata: { deliveryId: data.deliveryId }
+        })
+        return socket.emit('error', { message: 'Unauthorized delivery access' })
+      }
+    }
+
+    next()
+  }
+}
+
+// Verify delivery access for socket events - STRICT OWNERSHIP
+const verifyDeliveryAccess = async (userId, userType, deliveryId) => {
+  try {
+    if (userType === 'ADMIN') return true
+
+    const delivery = await prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      select: { customerId: true, driverId: true }
+    })
+
+    if (!delivery) return false
+
+    // STRICT: Only customer or assigned driver can access
+    return delivery.customerId === userId || delivery.driverId === userId
+  } catch (error) {
+    console.error('Delivery access verification error:', error)
+    return false
+  }
+}
+
+// Enhanced rate limiting for socket events with per-user tracking
 const socketRateLimiter = new Map()
 
 const rateLimitSocket = (eventName, maxEvents = 10, windowMs = 60000) => {
-  return (socket, next) => {
+  return async (socket, data, next) => {
     const key = `${socket.userId}:${eventName}`
     const now = Date.now()
     
@@ -125,16 +205,16 @@ const rateLimitSocket = (eventName, maxEvents = 10, windowMs = 60000) => {
     }
     
     if (limit.count >= maxEvents) {
-      logSecurityEvent({
+      await logSecurityEvent({
         userId: socket.userId,
-        eventType: 'RATE_LIMIT_EXCEEDED',
+        eventType: 'SOCKET_RATE_LIMIT_EXCEEDED',
         severity: 'medium',
         description: `Socket rate limit exceeded for event: ${eventName}`,
         ipAddress: socket.handshake.address,
         userAgent: socket.handshake.headers['user-agent'],
         metadata: { eventName, count: limit.count, maxEvents }
       })
-      return next(new Error('Rate limit exceeded'))
+      return socket.emit('error', { message: 'Rate limit exceeded' })
     }
     
     limit.count++
@@ -142,8 +222,20 @@ const rateLimitSocket = (eventName, maxEvents = 10, windowMs = 60000) => {
   }
 }
 
+// Clean up rate limiter periodically
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, limit] of socketRateLimiter.entries()) {
+    if (now > limit.resetTime) {
+      socketRateLimiter.delete(key)
+    }
+  }
+}, 5 * 60 * 1000) // Clean up every 5 minutes
+
 module.exports = {
   authenticateSocket,
   requireSocketRole,
-  rateLimitSocket
+  rateLimitSocket,
+  authorizeSocketEvent,
+  verifyDeliveryAccess
 }

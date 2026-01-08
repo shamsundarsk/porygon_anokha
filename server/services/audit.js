@@ -9,7 +9,7 @@ const logger = winston.createLogger({
     winston.format.errors({ stack: true }),
     winston.format.json()
   ),
-  defaultMeta: { service: 'fairload-api' },
+  defaultMeta: { service: 'pakkadrop-api' },
   transports: [
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
     new winston.transports.File({ filename: 'logs/audit.log' }),
@@ -22,7 +22,7 @@ const logger = winston.createLogger({
   ]
 })
 
-// Log audit events
+// Log audit events with enhanced detail
 const logAuditEvent = async ({
   userId,
   deliveryId,
@@ -32,37 +32,69 @@ const logAuditEvent = async ({
   oldValues,
   newValues,
   ipAddress,
-  userAgent
+  userAgent,
+  sessionId,
+  requestId
 }) => {
   try {
-    // Log to database
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        deliveryId,
-        action,
-        resource,
-        resourceId,
-        oldValues: oldValues ? JSON.stringify(oldValues) : null,
-        newValues: newValues ? JSON.stringify(newValues) : null,
-        ipAddress,
-        userAgent
-      }
-    })
-
-    // Log to Winston
-    logger.info('Audit Event', {
+    // Enhanced audit data
+    const auditData = {
       userId,
       deliveryId,
       action,
       resource,
       resourceId,
+      oldValues: oldValues ? JSON.stringify(oldValues) : null,
+      newValues: newValues ? JSON.stringify(newValues) : null,
       ipAddress,
       userAgent,
+      sessionId,
+      requestId,
+      timestamp: new Date(),
+      // Add request fingerprint for correlation
+      fingerprint: generateRequestFingerprint(ipAddress, userAgent)
+    }
+
+    // Log to database
+    await prisma.auditLog.create({ data: auditData })
+
+    // Log to Winston with structured data
+    logger.info('Audit Event', {
+      ...auditData,
       timestamp: new Date().toISOString()
     })
+
+    // Real-time audit monitoring for critical actions
+    if (['DELETE', 'ADMIN_ACTION', 'PAYMENT_COMPLETE'].includes(action)) {
+      await alertCriticalAuditEvent(auditData)
+    }
   } catch (error) {
     logger.error('Failed to log audit event', { error: error.message })
+  }
+}
+
+// Generate request fingerprint for correlation
+const generateRequestFingerprint = (ipAddress, userAgent) => {
+  const crypto = require('crypto')
+  const data = `${ipAddress}:${userAgent}:${Date.now()}`
+  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16)
+}
+
+// Alert on critical audit events
+const alertCriticalAuditEvent = async (auditData) => {
+  try {
+    logger.warn('🔍 CRITICAL AUDIT EVENT', {
+      action: auditData.action,
+      resource: auditData.resource,
+      userId: auditData.userId,
+      ipAddress: auditData.ipAddress,
+      timestamp: auditData.timestamp
+    })
+    
+    // In production, send to monitoring systems
+    console.warn('🔍 CRITICAL AUDIT:', `${auditData.action} on ${auditData.resource} by user ${auditData.userId}`)
+  } catch (error) {
+    logger.error('Failed to send critical audit alert', { error: error.message })
   }
 }
 

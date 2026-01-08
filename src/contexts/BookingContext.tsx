@@ -35,7 +35,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [])
 
   const createDelivery = async (deliveryData: any): Promise<DeliveryRequest> => {
-    const token = localStorage.getItem('fairload_token')
+    const token = localStorage.getItem('pakkadrop_token')
     const response = await fetch('/api/deliveries', {
       method: 'POST',
       headers: {
@@ -55,7 +55,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   const cancelDelivery = async (deliveryId: string) => {
-    const token = localStorage.getItem('fairload_token')
+    const token = localStorage.getItem('pakkadrop_token')
     const response = await fetch(`/api/deliveries/${deliveryId}/cancel`, {
       method: 'POST',
       headers: {

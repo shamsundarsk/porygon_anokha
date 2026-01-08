@@ -52,7 +52,7 @@ const DriverDashboard: React.FC = () => {
 
   const fetchDriverData = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/drivers/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -72,7 +72,7 @@ const DriverDashboard: React.FC = () => {
 
   const fetchAvailableBookings = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/deliveries/available', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -89,7 +89,7 @@ const DriverDashboard: React.FC = () => {
 
   const toggleOnlineStatus = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/drivers/toggle-status', {
         method: 'POST',
         headers: {
@@ -106,7 +106,7 @@ const DriverDashboard: React.FC = () => {
 
   const acceptBooking = async (bookingId: string) => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch(`/api/deliveries/${bookingId}/accept`, {
         method: 'POST',
         headers: {
@@ -136,7 +136,7 @@ const DriverDashboard: React.FC = () => {
     if (!currentBooking) return
 
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch(`/api/deliveries/${currentBooking.id}/status`, {
         method: 'POST',
         headers: {

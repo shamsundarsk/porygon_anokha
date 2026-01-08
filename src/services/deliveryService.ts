@@ -49,6 +49,91 @@ class DeliveryService {
   constructor() {
     // Initialize with some mock data for demonstration
     this.initializeMockData()
+    
+    // Add some demo users for testing
+    this.initializeDemoUsers()
+  }
+
+  private initializeDemoUsers() {
+    // Create some demo deliveries for different user types
+    const demoDeliveries: Delivery[] = [
+      {
+        id: 'DEMO001',
+        customerId: 'demo_customer_1',
+        customerName: 'Demo Customer',
+        customerPhone: '+91 98765 43210',
+        driverId: 'demo_driver_1',
+        driverName: 'Rajesh Kumar',
+        driverPhone: '+91 87654 32109',
+        status: 'IN_TRANSIT',
+        pickup: {
+          address: 'Bandra West, Mumbai',
+          contactName: 'Demo Customer',
+          contactPhone: '+91 98765 43210',
+          lat: 19.0596,
+          lng: 72.8295
+        },
+        dropoff: {
+          address: 'Andheri East, Mumbai',
+          contactName: 'Recipient Name',
+          contactPhone: '+91 76543 21098',
+          lat: 19.1136,
+          lng: 72.8697
+        },
+        packageType: 'Electronics',
+        weight: 2.5,
+        vehicleType: 'bike',
+        deliveryType: 'EXPRESS',
+        paymentMethod: 'UPI',
+        specialInstructions: 'Handle with care',
+        fare: 180,
+        distance: '8.2 km',
+        estimatedTime: '25 min',
+        createdAt: new Date(Date.now() - 45 * 60 * 1000), // 45 minutes ago
+        acceptedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+        pickedUpAt: new Date(Date.now() - 15 * 60 * 1000)  // 15 minutes ago
+      },
+      {
+        id: 'DEMO002',
+        customerId: 'demo_customer_1',
+        customerName: 'Demo Customer',
+        customerPhone: '+91 98765 43210',
+        status: 'DELIVERED',
+        pickup: {
+          address: 'Powai, Mumbai',
+          contactName: 'Demo Customer',
+          contactPhone: '+91 98765 43210',
+          lat: 19.1176,
+          lng: 72.9060
+        },
+        dropoff: {
+          address: 'Worli, Mumbai',
+          contactName: 'Business Client',
+          contactPhone: '+91 65432 10987',
+          lat: 19.0176,
+          lng: 72.8118
+        },
+        packageType: 'Documents',
+        weight: 0.5,
+        vehicleType: 'bike',
+        deliveryType: 'POOL',
+        paymentMethod: 'UPI',
+        fare: 120,
+        distance: '12.5 km',
+        estimatedTime: '35 min',
+        driverId: 'demo_driver_2',
+        driverName: 'Priya Sharma',
+        driverPhone: '+91 76543 21098',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        acceptedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000),
+        pickedUpAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000),
+        deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000)
+      }
+    ]
+
+    demoDeliveries.forEach(delivery => {
+      this.deliveries.set(delivery.id, delivery)
+    })
   }
 
   private initializeMockData() {
@@ -137,6 +222,11 @@ class DeliveryService {
    * Get deliveries for a specific customer
    */
   getCustomerDeliveries(customerId: string): Delivery[] {
+    // If it's a demo user ID, return demo deliveries
+    if (customerId.includes('demo') || customerId === 'demo_customer_1') {
+      return this.getAllDeliveries().filter(delivery => delivery.customerId === 'demo_customer_1')
+    }
+    
     return this.getAllDeliveries().filter(delivery => delivery.customerId === customerId)
   }
 

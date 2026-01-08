@@ -33,7 +33,7 @@ const CustomerDashboard: React.FC = () => {
 
   const fetchBookings = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/deliveries/my-deliveries', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -50,7 +50,7 @@ const CustomerDashboard: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('fairload_token')
+      const token = localStorage.getItem('pakkadrop_token')
       const response = await fetch('/api/customers/stats', {
         headers: {
           'Authorization': `Bearer ${token}`

@@ -39,7 +39,7 @@ const LandingPage = () => {
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-xl text-white">🚛</span>
               </div>
-              <span className="text-2xl font-bold text-gray-900">FairLoad</span>
+              <span className="text-2xl font-bold text-gray-900">PakkaDrop</span>
             </div>
             <div className="flex items-center space-x-4">
               <button className="text-gray-600 hover:text-gray-900">About</button>
@@ -86,7 +86,7 @@ const LandingPage = () => {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose FairLoad?</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose PakkaDrop?</h2>
             <p className="text-gray-600">Built for transparency, efficiency, and fairness</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -252,7 +252,7 @@ const LandingPage = () => {
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <span className="text-lg text-white">🚛</span>
                 </div>
-                <span className="text-xl font-bold">FairLoad</span>
+                <span className="text-xl font-bold">PakkaDrop</span>
               </div>
               <p className="text-gray-400">
                 India's most transparent logistics platform connecting customers, drivers, and businesses.
@@ -287,7 +287,7 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 FairLoad. All rights reserved.</p>
+            <p>&copy; 2024 PakkaDrop. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -334,30 +334,31 @@ const DashboardRouter = () => {
   }
 
   // Get user type from user object or localStorage
-  let userType = user.userType
+  const { userType: currentUserType } = user;
+  let userType = currentUserType;
   if (!userType && user.id) {
-    userType = localStorage.getItem(`userType_${user.id}`) as 'B2C' | 'B2B' | 'DRIVER' | 'OWNER'
+    userType = localStorage.getItem(`userType_${user.id}`) as 'CUSTOMER' | 'DRIVER' | 'BUSINESS' | 'ADMIN';
   }
 
-  console.log('DashboardRouter - User:', user, 'UserType:', userType) // Debug log
+  console.log('DashboardRouter - User:', user, 'UserType:', userType);
 
   // If still no user type, show selector
   if (!userType) {
-    return <UserTypeSelector />
+    return <UserTypeSelector />;
   }
 
   // Direct navigation based on user type
   switch (userType) {
-    case 'B2C':
-      return <Navigate to="/customer-dashboard" replace />
-    case 'B2B':
-      return <Navigate to="/business-dashboard" replace />
+    case 'CUSTOMER':
+      return <Navigate to="/customer-dashboard" replace />;
+    case 'BUSINESS':
+      return <Navigate to="/business-dashboard" replace />;
     case 'DRIVER':
-      return <Navigate to="/driver-dashboard" replace />
-    case 'OWNER':
-      return <Navigate to="/owner-dashboard" replace />
+      return <Navigate to="/driver-dashboard" replace />;
+    case 'ADMIN':
+      return <Navigate to="/owner-dashboard" replace />;
     default:
-      return <UserTypeSelector />
+      return <UserTypeSelector />;
   }
 }
 

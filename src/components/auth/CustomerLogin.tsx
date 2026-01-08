@@ -28,7 +28,7 @@ const CustomerLogin = () => {
           ...formData,
           email,
           password,
-          userType: 'B2C'
+          userType: 'CUSTOMER'
         })
         setTimeout(() => navigate('/customer-dashboard'), 500)
       }
