@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../providers/AuthProvider'
+import PhoneNumberInput from '../shared/PhoneNumberInput'
+import VehicleNumberInput from '../shared/VehicleNumberInput'
 import toast from 'react-hot-toast'
 
 const DriverLogin = () => {
@@ -20,10 +22,33 @@ const DriverLogin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Additional validation for registration
+    if (!isLogin) {
+      // Validate phone number format
+      if (!formData.phone || !formData.phone.includes('+')) {
+        toast.error('Please select a valid country code and enter your phone number')
+        return
+      }
+      
+      // Validate vehicle number format for drivers
+      if (!formData.vehicleNumber) {
+        toast.error('Please enter a valid vehicle number')
+        return
+      }
+      
+      // Check if vehicle number matches Indian format
+      const vehiclePattern = /^[A-Z]{2,3}\s+\d{2}\s+[A-Z]{1,2}\s+\d{4}$|^\d{2}\s+BH\s+\d{4}\s+[A-Z]{2}$/
+      if (!vehiclePattern.test(formData.vehicleNumber.toUpperCase())) {
+        toast.error('Please enter a valid Indian vehicle number (e.g., MH 01 AB 1234)')
+        return
+      }
+    }
+    
     try {
       if (isLogin) {
         await login(email, password)
-        setTimeout(() => navigate('/driver-dashboard'), 500)
+        setTimeout(() => navigate('/dashboard'), 500)
       } else {
         await register({
           ...formData,
@@ -31,7 +56,7 @@ const DriverLogin = () => {
           password,
           userType: 'DRIVER'
         })
-        setTimeout(() => navigate('/driver-dashboard'), 500)
+        setTimeout(() => navigate('/dashboard'), 500)
       }
     } catch (error) {
       // Error handled in AuthProvider
@@ -98,17 +123,12 @@ const DriverLogin = () => {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="+91 98765 43210"
-                    required
-                  />
-                </div>
+                <PhoneNumberInput
+                  value={formData.phone}
+                  onChange={(phone) => setFormData({ ...formData, phone })}
+                  required
+                  className="mb-4"
+                />
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Type</label>
                   <select
@@ -118,24 +138,20 @@ const DriverLogin = () => {
                     required
                   >
                     <option value="">Select your vehicle</option>
-                    <option value="bike">Bike</option>
+                    <option value="bike">Bike/Motorcycle</option>
                     <option value="auto">Auto Rickshaw</option>
-                    <option value="mini-truck">Mini Truck</option>
+                    <option value="mini-truck">Mini Truck (Tata Ace)</option>
                     <option value="pickup">Pickup Truck</option>
                     <option value="truck">Large Truck</option>
+                    <option value="tempo">Tempo Traveller</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Number</label>
-                  <input
-                    type="text"
-                    value={formData.vehicleNumber}
-                    onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="MH01AB1234"
-                    required
-                  />
-                </div>
+                <VehicleNumberInput
+                  value={formData.vehicleNumber}
+                  onChange={(vehicleNumber) => setFormData({ ...formData, vehicleNumber })}
+                  required
+                  className="mb-4"
+                />
               </>
             )}
 

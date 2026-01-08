@@ -13,6 +13,7 @@ import BusinessLogin from './components/auth/BusinessLogin'
 import DatabaseSetupNotice from './components/DatabaseSetupNotice'
 import UserTypeSelector from './components/UserTypeSelector'
 import NotificationSystem from './components/NotificationSystem'
+import ValidationDemo from './components/ValidationDemo'
 import './index.css'
 
 // Create React Query client
@@ -44,6 +45,12 @@ const LandingPage = () => {
             <div className="flex items-center space-x-4">
               <button className="text-gray-600 hover:text-gray-900">About</button>
               <button className="text-gray-600 hover:text-gray-900">Contact</button>
+              <button 
+                onClick={() => navigate('/validation-demo')}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Validation Demo
+              </button>
               <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                 Sign In
               </button>
@@ -405,6 +412,12 @@ function App() {
                   <OwnerDashboard />
                 </ProtectedRoute>
               } />
+              
+              {/* Enhanced Features Demo */}
+              <Route path="/demo" element={<ValidationDemo />} />
+              
+              {/* Validation Demo */}
+              <Route path="/validation-demo" element={<ValidationDemo />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../providers/AuthProvider'
+import PhoneNumberInput from '../shared/PhoneNumberInput'
 import toast from 'react-hot-toast'
 
 const BusinessLogin = () => {
@@ -157,17 +158,12 @@ const BusinessLogin = () => {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="+91 98765 43210"
-                    required
-                  />
-                </div>
+                <PhoneNumberInput
+                  value={formData.phone}
+                  onChange={(phone) => setFormData({ ...formData, phone })}
+                  required
+                  className="mb-4"
+                />
                 
                 {userType === 'ADMIN' && (
                   <>

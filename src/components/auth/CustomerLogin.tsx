@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../providers/AuthProvider'
+import PhoneNumberInput from '../shared/PhoneNumberInput'
 import toast from 'react-hot-toast'
 
 const CustomerLogin = () => {
@@ -19,10 +20,21 @@ const CustomerLogin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Additional validation for registration
+    if (!isLogin) {
+      // Validate phone number format
+      if (!formData.phone || !formData.phone.includes('+')) {
+        toast.error('Please select a valid country code and enter your phone number')
+        return
+      }
+    }
+    
     try {
       if (isLogin) {
         await login(email, password)
-        setTimeout(() => navigate('/customer-dashboard'), 500)
+        // Navigate to dashboard route which will handle user type routing
+        setTimeout(() => navigate('/dashboard'), 500)
       } else {
         await register({
           ...formData,
@@ -30,7 +42,8 @@ const CustomerLogin = () => {
           password,
           userType: 'CUSTOMER'
         })
-        setTimeout(() => navigate('/customer-dashboard'), 500)
+        // Navigate to dashboard route which will handle user type routing
+        setTimeout(() => navigate('/dashboard'), 500)
       }
     } catch (error) {
       // Error handled in AuthProvider
@@ -111,17 +124,12 @@ const CustomerLogin = () => {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="+91 98765 43210"
-                    required
-                  />
-                </div>
+                <PhoneNumberInput
+                  value={formData.phone}
+                  onChange={(phone) => setFormData({ ...formData, phone })}
+                  required
+                  className="mb-4"
+                />
               </>
             )}
 
