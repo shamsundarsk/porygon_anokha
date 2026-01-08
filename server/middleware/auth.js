@@ -19,8 +19,7 @@ const authenticateToken = async (req, res, next) => {
         id: true,
         email: true,
         userType: true,
-        isActive: true,
-        isVerified: true
+        isActive: true
       }
     })
 
@@ -36,17 +35,22 @@ const authenticateToken = async (req, res, next) => {
   }
 }
 
-const requireRole = (roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' })
-    }
+const requireRole = (allowedRoles) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' })
+      }
 
-    if (!roles.includes(req.user.userType)) {
-      return res.status(403).json({ error: 'Insufficient permissions' })
-    }
+      if (!allowedRoles.includes(req.user.userType)) {
+        return res.status(403).json({ error: 'Insufficient permissions' })
+      }
 
-    next()
+      next()
+    } catch (error) {
+      console.error('Role authorization error:', error)
+      res.status(500).json({ error: 'Authorization check failed' })
+    }
   }
 }
 

@@ -1,22 +1,86 @@
 require('dotenv').config()
 const express = require('express')
-const cors = require('cors')
 const { createServer } = require('http')
 const { Server } = require('socket.io')
-const { prisma, testConnection } = require('./database/connection')
+const cors = require('cors')
+const morgan = require('morgan')
+
+// Import security middleware
+const {
+  securityHeaders,
+  globalRateLimit,
+  speedLimiter,
+  sanitizeRequest,
+  corsOptions,
+  hpp
+} = require('./middleware/security')
+
+// Import environment validation
+const { validateEnvironment } = require('./config/environment')
+
+// Import database connection
+const { prisma } = require('./database/connection')
+
+// Import socket authentication
+const { authenticateSocket, rateLimitSocket } = require('./middleware/socketAuth')
+
+// Import audit logging
+const { logAuditEvent, logSecurityEvent, logger } = require('./services/audit')
+
+// Validate environment variables on startup
+const env = validateEnvironment()
 
 const app = express()
 const server = createServer(app)
+
+// Socket.IO with security
 const io = new Server(server, {
-  cors: {
-    origin: ["http://localhost:3003", "http://localhost:19006"], // Add Expo dev server
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-  }
+  cors: corsOptions,
+  transports: ['websocket', 'polling'],
+  allowEIO3: false, // Disable Engine.IO v3 for security
+  pingTimeout: 60000,
+  pingInterval: 25000
 })
 
-// Make io available globally for routes
-global.io = io
+// Trust proxy for accurate IP addresses
+app.set('trust proxy', 1)
+
+// Security middleware (order matters!)
+app.use(securityHeaders)
+app.use(hpp) // HTTP Parameter Pollution protection
+app.use(sanitizeRequest)
+app.use(globalRateLimit)
+app.use(speedLimiter)
+
+// CORS
+app.use(cors(corsOptions))
+
+// Request logging
+app.use(morgan('combined', {
+  stream: {
+    write: (message) => logger.info(message.trim())
+  }
+}))
+
+// Body parsing with size limits
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    // Store raw body for webhook verification
+    req.rawBody = buf
+  }
+}))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: '2.0.0'
+  })
+})
 
 // Import routes
 const authRoutes = require('./routes/auth')
@@ -28,24 +92,7 @@ const customerRoutes = require('./routes/customers')
 const mapRoutes = require('./routes/maps')
 const paymentRoutes = require('./routes/payments')
 
-// Middleware
-app.use(cors({
-  origin: ["http://localhost:3005", "http://localhost:19006"],
-  credentials: true
-}))
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV 
-  })
-})
-
-// Routes
+// API routes
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/deliveries', deliveryRoutes)
@@ -55,72 +102,220 @@ app.use('/api/customers', customerRoutes)
 app.use('/api/maps', mapRoutes)
 app.use('/api/payments', paymentRoutes)
 
-// Socket.io for real-time features
-const activeDrivers = new Map() // Store active driver locations
-const activeDeliveries = new Map() // Store active delivery tracking
+// Honeypot routes (add before other routes)
+app.get('/admin', async (req, res) => {
+  // Log honeypot access
+  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
+  res.status(404).json({ error: 'Not found' })
+})
+
+app.get('/wp-admin', async (req, res) => {
+  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
+  res.status(404).json({ error: 'Not found' })
+})
+
+app.get('/phpmyadmin', async (req, res) => {
+  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
+  res.status(404).json({ error: 'Not found' })
+})
+
+app.get('/.env', async (req, res) => {
+  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
+  res.status(404).json({ error: 'Not found' })
+})
+
+app.get('/config', async (req, res) => {
+  console.log(`🍯 Honeypot accessed: ${req.method} ${req.path} from ${req.ip}`)
+  res.status(404).json({ error: 'Not found' })
+})
+
+// Socket.IO with authentication and security
+io.use(authenticateSocket)
+
+// Store active connections securely
+const activeDrivers = new Map()
+const activeDeliveries = new Map()
+const userSockets = new Map()
 
 io.on('connection', (socket) => {
-  console.log(`🔌 User connected: ${socket.id}`)
-
-  // Driver location updates
-  socket.on('driver-location-update', (data) => {
-    const { driverId, lat, lng, heading } = data
-    activeDrivers.set(driverId, { lat, lng, heading, socketId: socket.id, lastUpdate: Date.now() })
-    
-    // Broadcast to customers tracking this driver
-    socket.broadcast.emit('driver-location', { driverId, lat, lng, heading })
+  console.log(`🔌 User connected: ${socket.userId} (${socket.userType})`)
+  
+  // Store user socket mapping
+  userSockets.set(socket.userId, socket.id)
+  
+  // Log connection
+  logAuditEvent({
+    userId: socket.userId,
+    action: 'CREATE',
+    resource: 'socket_connection',
+    ipAddress: socket.handshake.address,
+    userAgent: socket.handshake.headers['user-agent']
   })
 
-  // Join delivery tracking room
-  socket.on('track-delivery', (deliveryId) => {
-    socket.join(`delivery-${deliveryId}`)
-    console.log(`📍 Tracking delivery: ${deliveryId}`)
-  })
-
-  // Delivery status updates
-  socket.on('delivery-status-update', (data) => {
-    const { deliveryId, status, location } = data
-    io.to(`delivery-${deliveryId}`).emit('delivery-update', data)
-  })
-
-  // Voice command handling
-  socket.on('voice-command', (data) => {
-    const { command, userId } = data
-    // Process voice command and emit response
-    socket.emit('voice-response', { 
-      message: `Processed command: ${command}`,
-      action: 'navigate' // or other actions
-    })
-  })
-
-  // Disconnect handling
-  socket.on('disconnect', () => {
-    console.log(`🔌 User disconnected: ${socket.id}`)
-    
-    // Remove driver from active list
-    for (const [driverId, driverData] of activeDrivers.entries()) {
-      if (driverData.socketId === socket.id) {
-        activeDrivers.delete(driverId)
-        break
-      }
+  // Driver location updates (only for drivers)
+  socket.on('driver-location-update', rateLimitSocket('driver-location-update', 60, 60000), async (data) => {
+    if (socket.userType !== 'DRIVER') {
+      await logSecurityEvent({
+        userId: socket.userId,
+        eventType: 'UNAUTHORIZED_ACCESS',
+        severity: 'high',
+        description: 'Non-driver attempted location update',
+        ipAddress: socket.handshake.address,
+        userAgent: socket.handshake.headers['user-agent']
+      })
+      return socket.emit('error', { message: 'Unauthorized' })
     }
+
+    const { lat, lng, heading, deliveryId } = data
+    
+    // Validate coordinates
+    if (!lat || !lng || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return socket.emit('error', { message: 'Invalid coordinates' })
+    }
+
+    // Store driver location securely
+    activeDrivers.set(socket.userId, { 
+      lat, 
+      lng, 
+      heading, 
+      socketId: socket.id, 
+      lastUpdate: Date.now(),
+      deliveryId
+    })
+    
+    // Update database
+    await prisma.user.update({
+      where: { id: socket.userId },
+      data: { 
+        currentLat: lat, 
+        currentLng: lng,
+        lastSeen: new Date()
+      }
+    })
+
+    // Only broadcast to customers tracking this specific delivery
+    if (deliveryId) {
+      socket.to(`delivery-${deliveryId}`).emit('driver-location', { 
+        driverId: socket.userId, 
+        lat, 
+        lng, 
+        heading,
+        timestamp: new Date()
+      })
+    }
+  })
+
+  // Join delivery tracking room (with authorization)
+  socket.on('track-delivery', rateLimitSocket('track-delivery', 10, 60000), async (deliveryId) => {
+    try {
+      // Verify user can track this delivery
+      const delivery = await prisma.delivery.findUnique({
+        where: { id: deliveryId },
+        select: { customerId: true, driverId: true }
+      })
+
+      if (!delivery) {
+        return socket.emit('error', { message: 'Delivery not found' })
+      }
+
+      // Check authorization
+      const canTrack = delivery.customerId === socket.userId || 
+                      delivery.driverId === socket.userId || 
+                      socket.userType === 'ADMIN'
+
+      if (!canTrack) {
+        await logSecurityEvent({
+          userId: socket.userId,
+          eventType: 'UNAUTHORIZED_ACCESS',
+          severity: 'high',
+          description: 'Unauthorized delivery tracking attempt',
+          ipAddress: socket.handshake.address,
+          userAgent: socket.handshake.headers['user-agent'],
+          metadata: { deliveryId }
+        })
+        return socket.emit('error', { message: 'Unauthorized' })
+      }
+
+      socket.join(`delivery-${deliveryId}`)
+      console.log(`📍 User ${socket.userId} tracking delivery: ${deliveryId}`)
+      
+    } catch (error) {
+      console.error('Track delivery error:', error)
+      socket.emit('error', { message: 'Failed to join tracking' })
+    }
+  })
+
+  // Handle disconnection
+  socket.on('disconnect', async () => {
+    console.log(`❌ User disconnected: ${socket.userId}`)
+    
+    // Clean up active driver location
+    if (socket.userType === 'DRIVER') {
+      activeDrivers.delete(socket.userId)
+      
+      // Update driver offline status
+      await prisma.user.update({
+        where: { id: socket.userId },
+        data: { isOnline: false, lastSeen: new Date() }
+      })
+    }
+    
+    // Remove from user socket mapping
+    userSockets.delete(socket.userId)
+    
+    await logAuditEvent({
+      userId: socket.userId,
+      action: 'DELETE',
+      resource: 'socket_connection',
+      ipAddress: socket.handshake.address,
+      userAgent: socket.handshake.headers['user-agent']
+    })
   })
 })
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('❌ Error:', err)
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+// Global error handler
+app.use((error, req, res, next) => {
+  logger.error('Unhandled error:', error)
+  
+  // Don't expose error details in production
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  
+  res.status(error.status || 500).json({
+    error: isDevelopment ? error.message : 'Internal server error',
+    ...(isDevelopment && { stack: error.stack })
   })
 })
 
 // 404 handler
 app.use('*', (req, res) => {
+  logSecurityEvent({
+    eventType: 'SUSPICIOUS_ACTIVITY',
+    severity: 'low',
+    description: `404 - Route not found: ${req.method} ${req.originalUrl}`,
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent')
+  })
+  
   res.status(404).json({ error: 'Route not found' })
 })
 
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully')
+  
+  // Close server
+  server.close(() => {
+    console.log('HTTP server closed')
+    
+    // Close database connection
+    prisma.$disconnect().then(() => {
+      console.log('Database connection closed')
+      process.exit(0)
+    })
+  })
+})
+
+// Start server
 const PORT = process.env.PORT || 5004
 
 async function startServer() {
@@ -131,9 +326,17 @@ async function startServer() {
     // Start server
     server.listen(PORT, () => {
       console.log(`🚀 FairLoad server running on port ${PORT}`)
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
-      console.log(`📱 Socket.io enabled for real-time features`)
+      console.log(`🔒 Security measures active`)
+      console.log(`📊 Environment: ${process.env.NODE_ENV}`)
+      console.log(`📱 Socket.io enabled with authentication`)
       console.log(`💡 Demo mode - no database required`)
+      
+      // Log server start
+      logger.info('Server started', {
+        port: PORT,
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      })
     })
   } catch (error) {
     console.error('❌ Failed to start server:', error)
@@ -143,4 +346,7 @@ async function startServer() {
 
 startServer()
 
-module.exports = { app, io, activeDrivers, activeDeliveries }
+// Make io available globally for route handlers
+global.io = io
+
+module.exports = { app, server, io, activeDrivers, activeDeliveries }

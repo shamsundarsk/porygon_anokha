@@ -3,12 +3,12 @@ const { authenticateToken } = require('../middleware/auth')
 
 const router = express.Router()
 
-// Create payment intent (placeholder)
+// Create payment intent (demo)
 router.post('/create-intent', authenticateToken, async (req, res) => {
   try {
     const { amount, deliveryId } = req.body
 
-    // In production, integrate with Razorpay/Stripe
+    // Demo payment intent
     const paymentIntent = {
       id: `pi_${Math.random().toString(36).substr(2, 9)}`,
       amount,

@@ -96,3 +96,18 @@ temp/
 
 # Prisma
 prisma/migrations/
+# Security logs (keep directory, ignore files)
+logs/*.log
+logs/*.json
+logs/audit*
+logs/error*
+logs/security*
+
+# Additional security files to ignore
+*.pem
+*.key
+*.crt
+.secrets/
+secrets/
+security-reports/
+vulnerability-scans/
