@@ -91,6 +91,17 @@ const adminRoutes = require('./routes/admin')
 const customerRoutes = require('./routes/customers')
 const mapRoutes = require('./routes/maps')
 const paymentRoutes = require('./routes/payments')
+const securityRoutes = require('./routes/security')
+
+// Import additional security middleware
+const { detectAbuse } = require('./middleware/abuseDetection')
+const { analyzeBehavior } = require('./middleware/behaviorAnalysis')
+const { validateSecurity } = require('./middleware/securityValidation')
+
+// Apply security middleware globally
+app.use(detectAbuse)
+app.use(analyzeBehavior)
+app.use(validateSecurity)
 
 // API routes
 app.use('/api/auth', authRoutes)
@@ -101,6 +112,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/customers', customerRoutes)
 app.use('/api/maps', mapRoutes)
 app.use('/api/payments', paymentRoutes)
+app.use('/api/security', securityRoutes)
 
 // Honeypot routes (add before other routes)
 const honeypotRoutes = [

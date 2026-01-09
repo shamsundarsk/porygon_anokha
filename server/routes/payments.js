@@ -244,6 +244,39 @@ router.post('/verify',
   }
 )
 
+// Get user's payments - MOVED BEFORE WILDCARD ROUTE
+router.get('/my-payments', authenticateToken, async (req, res) => {
+  try {
+    let whereClause = { userId: req.user.userId }
+    
+    // Admin can see all payments
+    if (req.user.userType === 'ADMIN') {
+      whereClause = {}
+    }
+
+    const payments = await prisma.payment.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        delivery: {
+          select: {
+            id: true,
+            orderId: true,
+            status: true,
+            pickupAddress: true,
+            deliveryAddress: true
+          }
+        }
+      }
+    })
+
+    res.json(payments)
+  } catch (error) {
+    console.error('Get payments error:', error)
+    res.status(500).json({ error: 'Failed to get payments' })
+  }
+})
+
 // Get payment details (with ownership verification)
 router.get('/:id', 
   authenticateToken,
@@ -276,39 +309,6 @@ router.get('/:id',
     }
   }
 )
-
-// Get user's payments
-router.get('/my-payments', authenticateToken, async (req, res) => {
-  try {
-    let whereClause = { userId: req.user.userId }
-    
-    // Admin can see all payments
-    if (req.user.userType === 'ADMIN') {
-      whereClause = {}
-    }
-
-    const payments = await prisma.payment.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        delivery: {
-          select: {
-            id: true,
-            orderId: true,
-            status: true,
-            pickupAddress: true,
-            deliveryAddress: true
-          }
-        }
-      }
-    })
-
-    res.json(payments)
-  } catch (error) {
-    console.error('Get payments error:', error)
-    res.status(500).json({ error: 'Failed to get payments' })
-  }
-})
 
 // Refund payment (ADMIN only)
 router.post('/:id/refund', 

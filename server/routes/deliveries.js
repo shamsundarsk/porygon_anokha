@@ -215,11 +215,58 @@ router.post('/:id/accept',
         return res.status(400).json({ error: 'Delivery already assigned to another driver' })
       }
 
-      // TODO: Add GPS verification - driver should be within reasonable distance of pickup
-      // const { currentLat, currentLng } = req.body
-      // if (calculateDistance(currentLat, currentLng, delivery.pickupLat, delivery.pickupLng) > 5) {
-      //   return res.status(400).json({ error: 'You must be within 5km of pickup location' })
-      // }
+      // GPS verification - driver must be within reasonable distance of pickup
+      const { currentLat, currentLng } = req.body
+      
+      if (!currentLat || !currentLng) {
+        await logSecurityEvent({
+          userId: driverId,
+          eventType: 'GPS_VERIFICATION_MISSING',
+          severity: 'high',
+          description: 'Driver attempted to accept delivery without GPS coordinates',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { deliveryId }
+        })
+        return res.status(400).json({ error: 'GPS coordinates required for delivery acceptance' })
+      }
+
+      // Validate GPS coordinates
+      if (currentLat < -90 || currentLat > 90 || currentLng < -180 || currentLng > 180) {
+        await logSecurityEvent({
+          userId: driverId,
+          eventType: 'INVALID_GPS_COORDINATES',
+          severity: 'high',
+          description: 'Driver provided invalid GPS coordinates',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { deliveryId, currentLat, currentLng }
+        })
+        return res.status(400).json({ error: 'Invalid GPS coordinates provided' })
+      }
+
+      const distanceToPickup = calculateDistance(currentLat, currentLng, delivery.pickupLat, delivery.pickupLng)
+      
+      if (distanceToPickup > 5) { // 5km radius
+        await logSecurityEvent({
+          userId: driverId,
+          eventType: 'GPS_VERIFICATION_FAILED',
+          severity: 'critical',
+          description: 'Driver attempted to accept delivery from outside allowed radius',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { 
+            deliveryId, 
+            distanceToPickup: distanceToPickup.toFixed(2),
+            allowedRadius: 5,
+            driverLocation: { lat: currentLat, lng: currentLng },
+            pickupLocation: { lat: delivery.pickupLat, lng: delivery.pickupLng }
+          }
+        })
+        return res.status(400).json({ 
+          error: `You must be within 5km of pickup location. Current distance: ${distanceToPickup.toFixed(2)}km` 
+        })
+      }
 
       // Update delivery status and assign driver
       const updatedDelivery = await prisma.delivery.update({
@@ -293,11 +340,58 @@ router.post('/:id/pickup',
         return res.status(403).json({ error: 'Not assigned to you' })
       }
 
-      // TODO: Verify driver location at pickup
-      // const { currentLat, currentLng } = req.body
-      // if (calculateDistance(currentLat, currentLng, delivery.pickupLat, delivery.pickupLng) > 0.1) {
-      //   return res.status(400).json({ error: 'You must be at pickup location' })
-      // }
+      // GPS verification - driver must be at pickup location
+      const { currentLat, currentLng } = req.body
+      
+      if (!currentLat || !currentLng) {
+        await logSecurityEvent({
+          userId: req.user.userId,
+          eventType: 'GPS_VERIFICATION_MISSING_PICKUP',
+          severity: 'high',
+          description: 'Driver attempted to pickup without GPS coordinates',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { deliveryId }
+        })
+        return res.status(400).json({ error: 'GPS coordinates required for pickup' })
+      }
+
+      // Validate GPS coordinates
+      if (currentLat < -90 || currentLat > 90 || currentLng < -180 || currentLng > 180) {
+        await logSecurityEvent({
+          userId: req.user.userId,
+          eventType: 'INVALID_GPS_COORDINATES_PICKUP',
+          severity: 'high',
+          description: 'Driver provided invalid GPS coordinates for pickup',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { deliveryId, currentLat, currentLng }
+        })
+        return res.status(400).json({ error: 'Invalid GPS coordinates provided' })
+      }
+
+      const distanceToPickup = calculateDistance(currentLat, currentLng, delivery.pickupLat, delivery.pickupLng)
+      
+      if (distanceToPickup > 0.1) { // 100m radius for pickup
+        await logSecurityEvent({
+          userId: req.user.userId,
+          eventType: 'GPS_VERIFICATION_FAILED_PICKUP',
+          severity: 'critical',
+          description: 'Driver attempted to pickup from outside allowed radius',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { 
+            deliveryId, 
+            distanceToPickup: (distanceToPickup * 1000).toFixed(0), // Convert to meters
+            allowedRadius: 100,
+            driverLocation: { lat: currentLat, lng: currentLng },
+            pickupLocation: { lat: delivery.pickupLat, lng: delivery.pickupLng }
+          }
+        })
+        return res.status(400).json({ 
+          error: `You must be within 100m of pickup location. Current distance: ${(distanceToPickup * 1000).toFixed(0)}m` 
+        })
+      }
 
       const updatedDelivery = await prisma.delivery.update({
         where: { id: deliveryId },
@@ -423,7 +517,58 @@ router.post('/:id/complete',
         return res.status(403).json({ error: 'Not assigned to you' })
       }
 
-      // TODO: Verify driver location at delivery address
+      // GPS verification - driver must be at delivery location
+      const { currentLat, currentLng } = req.body
+      
+      if (!currentLat || !currentLng) {
+        await logSecurityEvent({
+          userId: driverId,
+          eventType: 'GPS_VERIFICATION_MISSING_DELIVERY',
+          severity: 'high',
+          description: 'Driver attempted to complete delivery without GPS coordinates',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { deliveryId }
+        })
+        return res.status(400).json({ error: 'GPS coordinates required for delivery completion' })
+      }
+
+      // Validate GPS coordinates
+      if (currentLat < -90 || currentLat > 90 || currentLng < -180 || currentLng > 180) {
+        await logSecurityEvent({
+          userId: driverId,
+          eventType: 'INVALID_GPS_COORDINATES_DELIVERY',
+          severity: 'high',
+          description: 'Driver provided invalid GPS coordinates for delivery completion',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { deliveryId, currentLat, currentLng }
+        })
+        return res.status(400).json({ error: 'Invalid GPS coordinates provided' })
+      }
+
+      const distanceToDelivery = calculateDistance(currentLat, currentLng, delivery.deliveryLat, delivery.deliveryLng)
+      
+      if (distanceToDelivery > 0.1) { // 100m radius for delivery
+        await logSecurityEvent({
+          userId: driverId,
+          eventType: 'GPS_VERIFICATION_FAILED_DELIVERY',
+          severity: 'critical',
+          description: 'Driver attempted to complete delivery from outside allowed radius',
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: { 
+            deliveryId, 
+            distanceToDelivery: (distanceToDelivery * 1000).toFixed(0), // Convert to meters
+            allowedRadius: 100,
+            driverLocation: { lat: currentLat, lng: currentLng },
+            deliveryLocation: { lat: delivery.deliveryLat, lng: delivery.deliveryLng }
+          }
+        })
+        return res.status(400).json({ 
+          error: `You must be within 100m of delivery location. Current distance: ${(distanceToDelivery * 1000).toFixed(0)}m` 
+        })
+      }
       // const { currentLat, currentLng } = req.body
       // if (calculateDistance(currentLat, currentLng, delivery.deliveryLat, delivery.deliveryLng) > 0.1) {
       //   return res.status(400).json({ error: 'You must be at delivery location' })
