@@ -1,10 +1,12 @@
 const { PrismaClient } = require('@prisma/client')
 
+// Create Prisma client with enhanced configuration
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+  errorFormat: 'pretty',
 })
 
-// Test database connection
+// Test database connection with fallback
 async function testConnection() {
   try {
     // Skip actual connection test for demo mode
@@ -23,9 +25,25 @@ async function testConnection() {
   }
 }
 
-// Graceful shutdown
+// Enhanced graceful shutdown
 process.on('beforeExit', async () => {
+  try {
+    await prisma.$disconnect()
+    console.log('✅ Database connection closed')
+  } catch (error) {
+    console.error('❌ Error closing database connection:', error)
+  }
+})
+
+// Handle SIGINT and SIGTERM
+process.on('SIGINT', async () => {
   await prisma.$disconnect()
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect()
+  process.exit(0)
 })
 
 module.exports = { prisma, testConnection }

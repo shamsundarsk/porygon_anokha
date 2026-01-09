@@ -1,0 +1,212 @@
+{
+  "timestamp": "2026-01-09T00:51:52.834Z",
+  "summary": {
+    "totalFiles": 17,
+    "avgComplexity": 75,
+    "totalSecurityFeatures": 56,
+    "overallScore": 66
+  },
+  "securityCategories": [
+    {
+      "category": "Authentication",
+      "features": [
+        "Firebase Admin SDK integration",
+        "Supabase fallback authentication",
+        "JWT token validation with versioning",
+        "Role-based access control (RBAC)",
+        "Socket.IO authentication",
+        "Token refresh mechanism",
+        "Account lockout protection",
+        "Multi-factor authentication ready"
+      ]
+    },
+    {
+      "category": "Input Validation",
+      "features": [
+        "SQL injection prevention",
+        "XSS protection with sanitization",
+        "Geographic bounds validation",
+        "Phone number format validation",
+        "Email validation with normalization",
+        "File upload security",
+        "Parameter pollution protection",
+        "Null byte injection prevention"
+      ]
+    },
+    {
+      "category": "State Machine",
+      "features": [
+        "Delivery status transition validation",
+        "Payment state machine protection",
+        "Role-based transition permissions",
+        "Contextual access control",
+        "Invalid state transition detection",
+        "Audit logging for state changes",
+        "Idempotency protection",
+        "Business logic enforcement"
+      ]
+    },
+    {
+      "category": "Audit & Monitoring",
+      "features": [
+        "Real-time security event logging",
+        "Anomaly detection algorithms",
+        "Tamper detection for critical data",
+        "User behavior analysis",
+        "Admin action auditing",
+        "Suspicious activity alerts",
+        "Forensic trail maintenance",
+        "Compliance reporting"
+      ]
+    },
+    {
+      "category": "Payment Security",
+      "features": [
+        "Server-side amount calculation",
+        "Payment amount tamper detection",
+        "Duplicate payment prevention",
+        "Webhook signature verification",
+        "Idempotency key enforcement",
+        "Payment state machine",
+        "Fraud detection algorithms",
+        "PCI DSS compliance ready"
+      ]
+    },
+    {
+      "category": "Network Security",
+      "features": [
+        "Multi-tier rate limiting",
+        "DDoS protection",
+        "CORS policy enforcement",
+        "Security headers (Helmet.js)",
+        "Honeypot endpoints",
+        "Intrusion detection system",
+        "IP-based blocking",
+        "Request fingerprinting"
+      ]
+    },
+    {
+      "category": "Cryptography",
+      "features": [
+        "AES-256 encryption",
+        "HMAC signature verification",
+        "Secure key derivation",
+        "Device fingerprinting",
+        "Cryptographic hashing",
+        "Digital signatures",
+        "Key rotation support",
+        "Hardware security module ready"
+      ]
+    }
+  ],
+  "fileAnalysis": {
+    "server/middleware/auth.js": {
+      "description": "Primary authentication middleware with Firebase + Supabase fallback",
+      "lines": 193,
+      "securityKeywords": 8,
+      "complexityScore": 59
+    },
+    "server/middleware/socketAuth.js": {
+      "description": "Socket.IO authentication with role-based access",
+      "lines": 309,
+      "securityKeywords": 7,
+      "complexityScore": 66
+    },
+    "server/routes/auth.js": {
+      "description": "Authentication routes with comprehensive validation",
+      "lines": 309,
+      "securityKeywords": 7,
+      "complexityScore": 66
+    },
+    "server/config/supabase.js": {
+      "description": "Supabase integration for user management",
+      "lines": 15,
+      "securityKeywords": 1,
+      "complexityScore": 7
+    },
+    "server/middleware/security.js": {
+      "description": "Rate limiting, CORS, and security headers",
+      "lines": 389,
+      "securityKeywords": 10,
+      "complexityScore": 89
+    },
+    "server/services/mapsService.js": {
+      "description": "Geographic coordinate validation with bounds checking",
+      "lines": 343,
+      "securityKeywords": 6,
+      "complexityScore": 64
+    },
+    "server/middleware/paymentVerification.js": {
+      "description": "Multi-layer payment verification",
+      "lines": 281,
+      "securityKeywords": 7,
+      "complexityScore": 63
+    },
+    "server/middleware/stateMachine.js": {
+      "description": "Delivery and payment state machine with transition validation",
+      "lines": 330,
+      "securityKeywords": 5,
+      "complexityScore": 58
+    },
+    "server/middleware/rbac.js": {
+      "description": "Role-based access control with contextual permissions",
+      "lines": 286,
+      "securityKeywords": 4,
+      "complexityScore": 49
+    },
+    "server/services/audit.js": {
+      "description": "Advanced audit logging with anomaly detection",
+      "lines": 321,
+      "securityKeywords": 7,
+      "complexityScore": 67
+    },
+    "server/middleware/adminAudit.js": {
+      "description": "Admin action auditing",
+      "lines": 309,
+      "securityKeywords": 7,
+      "complexityScore": 66
+    },
+    "server/middleware/behaviorAnalysis.js": {
+      "description": "User behavior analysis",
+      "lines": 310,
+      "securityKeywords": 9,
+      "complexityScore": 76
+    },
+    "server/routes/payments.js": {
+      "description": "Secure payment processing with fraud detection",
+      "lines": 379,
+      "securityKeywords": 8,
+      "complexityScore": 78
+    },
+    "server/index.js": {
+      "description": "Honeypot network and intrusion detection",
+      "lines": 491,
+      "securityKeywords": 11,
+      "complexityScore": 100
+    },
+    "server/services/cryptographic.js": {
+      "description": "Advanced cryptographic operations",
+      "lines": 388,
+      "securityKeywords": 8,
+      "complexityScore": 79
+    },
+    "server/services/keyManagement.js": {
+      "description": "Secure key management",
+      "lines": 473,
+      "securityKeywords": 5,
+      "complexityScore": 72
+    },
+    "server/middleware/deviceBinding.js": {
+      "description": "Device binding and fingerprinting",
+      "lines": 358,
+      "securityKeywords": 6,
+      "complexityScore": 66
+    }
+  },
+  "securityLevel": "BASIC",
+  "recommendations": [
+    "CRITICAL: Implement missing security controls immediately.",
+    "Conduct comprehensive security review.",
+    "Consider security consulting services."
+  ]
+}
